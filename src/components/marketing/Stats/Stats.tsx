@@ -11,14 +11,11 @@ const STATS = [
 ];
 
 function Counter({ value, prefix = '', suffix = '' }: { value: number; prefix?: string; suffix?: string }): React.JSX.Element {
-  const [n, setN] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
   const reduce = useReducedMotion();
+  const [n, setN] = useState(() => (reduce ? value : 0));
+  const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
-    if (reduce) {
-      setN(value);
-      return;
-    }
+    if (reduce) return;
     let raf = 0;
     const start = performance.now();
     const tick = (t: number): void => {

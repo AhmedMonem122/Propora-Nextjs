@@ -109,13 +109,13 @@ export const apiClient = createApiClient();
 
 export function getApiMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
-    const msg = error.response?.data?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    if (typeof msg === 'string' && msg.length > 0) return msg;
     if (error.response?.status === 429) {
       const retryAfter = error.response.headers?.['retry-after'];
       return retryAfter ? `Too many requests. Retry in ${String(retryAfter)}s.` : 'Too many requests. Please wait and retry.';
     }
+    const msg = error.response?.data?.message;
+    if (Array.isArray(msg)) return msg.join(', ');
+    if (typeof msg === 'string' && msg.length > 0) return msg;
     if (error.code === 'ECONNABORTED') return 'Request timed out. Please retry.';
     if (!error.response) return 'Network error. Check your connection and retry.';
   }

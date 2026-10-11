@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Command } from 'cmdk';
 import { useQuery } from '@tanstack/react-query';
@@ -17,9 +17,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const router = useRouter();
   const [q, setQ] = useState('');
 
-  useEffect(() => {
-    if (!open) setQ('');
-  }, [open ]);
+  const handleOpenChange = (v: boolean): void => {
+    if (!v) setQ('');
+    onOpenChange(v);
+  };
 
   const enabled = open && q.trim().length >= 2;
   const params = { search: q.trim(), limit: 4 };
@@ -46,7 +47,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-xl" aria-label="Global search">
         <DialogTitle className="sr-only">Global search</DialogTitle>
         <Command label="Global search" className="[&_[cmdk-input]]:w-full">

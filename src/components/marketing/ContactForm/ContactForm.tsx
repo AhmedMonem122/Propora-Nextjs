@@ -28,7 +28,7 @@ export function ContactForm(): React.JSX.Element {
   const onSubmit = (v: Values): void => {
     const subject = encodeURIComponent(`Propora inquiry from ${v.name}`);
     const body = encodeURIComponent(`${v.message}\n\n— ${v.name} <${v.email}>`);
-    window.location.href = `mailto:hello@propora.app?subject=${subject}&body=${body}`;
+    window.open(`mailto:hello@propora.app?subject=${subject}&body=${body}`, '_self');
     setSent(true);
     toast.success('Message ready in your email app. We will reply soon!');
   };

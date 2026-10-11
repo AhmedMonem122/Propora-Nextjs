@@ -25,7 +25,6 @@ export default function HomePage(): React.JSX.Element {
   return (
     <>
       {/* Static JSON-LD Organization schema — no user input, the one sanctioned exception. */}
-      {/* eslint-disable-next-line react/no-danger */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD) }} />
       <Hero />
       <FeatureGrid />

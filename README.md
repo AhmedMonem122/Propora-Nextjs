@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Propora — Frontend
 
-## Getting Started
+Marketing site + tenant dashboard for the Propora property-management platform.
+**Frontend-only repo.** The backend contract is frozen:
 
-First, run the development server:
+- Base URL: `https://propora-nestjs-postegresql.vercel.app`
+- Swagger: `https://propora-nestjs-postegresql.vercel.app/docs`
+- OpenAPI JSON: `https://propora-nestjs-postegresql.vercel.app/docs-json`
+
+Found the API misbehaving? Report back with a Swagger link + request/response paste. Never write backend code here.
+
+## Stack
+
+Next.js 16 (App Router, Turbopack) · TypeScript strict · Tailwind CSS v4 · shadcn-style UI (Radix) ·
+TanStack Query + axios · React Hook Form + zod · TanStack Table · Sonner · Recharts · next-intl (EN) ·
+next-themes (dark mode) · Supabase Realtime (broadcast) · Vitest · Playwright · Husky + lint-staged.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # fill values (see below)
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Env
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+| Var | Purpose |
+| --- | ------- |
+| `NEXT_PUBLIC_API_URL` | Frozen backend base URL |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Realtime broadcast only |
+| `NEXT_PUBLIC_APP_URL` | Metadata / OG only |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Command | What |
+| ------- | ---- |
+| `npm run dev` | Dev server (Turbopack) |
+| `npx tsc --noEmit` | Strict typecheck (no `any`) |
+| `npm run lint` | ESLint (Next + react-compiler rules) |
+| `npx vitest run` | Unit tests (28 green) |
+| `npm run test:e2e` | Playwright smoke (needs `npx playwright install`) |
+| `npm run build` | Production build (must stay green) |
 
-To learn more about Next.js, take a look at the following resources:
+## Conventions (see `AGENTS.md`)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- TanStack Query everywhere; axios singleton in `src/lib/api-client.ts` (in-memory token,
+  single-flight 401 refresh, `BroadcastChannel` multi-tab logout).
+- Every table: server search (debounced 350 ms) + server pagination + reload button.
+- Every delete behind `ConfirmDialog`; every mutation toasts via Sonner.
+- Forms: React Hook Form + zod, schema colocated with the form.
+- Colocation: one folder per component; deep imports only, no barrel chains.
+- All UI strings in `src/messages/en.json` via `useTranslations`.
+- Conventional Commits, pushed to GitHub.
