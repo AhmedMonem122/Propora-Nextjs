@@ -1,6 +1,6 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 import { describe, expect, it } from 'vitest';
-import { getApiMessage, getApiStatus } from './api-client';
+import { extractFieldErrors, getApiMessage, getApiMessages, getApiStatus } from './api-client';
 
 function apiError(status: number, message: string | string[], headers?: Record<string, string>): AxiosError {
   return new AxiosError(
@@ -40,5 +40,31 @@ describe('getApiStatus', () => {
   it('extracts HTTP status', () => {
     expect(getApiStatus(apiError(404, 'nope'))).toBe(404);
     expect(getApiStatus(new Error('x'))).toBeUndefined();
+  });
+});
+
+describe('getApiMessages', () => {
+  it('handles nested object messages', () => {
+    const err = apiError(400, { email: 'must be an email' } as unknown as string);
+    expect(getApiMessages(err)).toEqual(['must be an email']);
+  });
+
+  it('returns [] with no backend message', () => {
+    expect(getApiMessages(new Error('x'))).toEqual([]);
+  });
+});
+
+describe('extractFieldErrors', () => {
+  it('maps backend messages to matching fields', () => {
+    const err = apiError(400, ['email must be an email', 'password must be longer than 8 chars', 'unrelated boom']);
+    expect(extractFieldErrors(err, ['email', 'password'])).toEqual({
+      email: 'email must be an email',
+      password: 'password must be longer than 8 chars',
+    });
+  });
+
+  it('matches camelCase fields in spaced messages', () => {
+    const err = apiError(400, ['first name should not be empty']);
+    expect(extractFieldErrors(err, ['firstName', 'lastName'])).toEqual({ firstName: 'first name should not be empty' });
   });
 });

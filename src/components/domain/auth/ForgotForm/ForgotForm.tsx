@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { apiClient, getApiMessage } from '@/lib/api-client';
+import { apiClient, applyFormErrors, getApiMessage } from '@/lib/api-client';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
 import { Label } from '@/components/ui/Label/Label';
@@ -16,7 +16,7 @@ type Values = z.infer<typeof schema>;
 
 export function ForgotForm(): React.JSX.Element {
   const [sent, setSent] = useState(false);
-  const { register, handleSubmit, formState } = useForm<Values>({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, formState, setError } = useForm<Values>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (v: Values): Promise<void> => {
     try {
@@ -25,6 +25,7 @@ export function ForgotForm(): React.JSX.Element {
       toast.success('If the email exists, a reset code is on its way.');
     } catch (e) {
       toast.error(getApiMessage(e, 'Request failed.'));
+      applyFormErrors(e, setError, ['email']);
     }
   };
 

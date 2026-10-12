@@ -25,11 +25,15 @@ import type { Webhook, WebhookDelivery } from '@/types/api';
 const schema = z.object({
   url: z.string().url('Enter a valid HTTPS URL.'),
   events: z.string().optional().or(z.literal('')),
-  active: z.boolean().optional(),
+  isActive: z.boolean().optional(),
 });
 type Values = z.infer<typeof schema>;
 
-const EVENT_CHOICES = ['notification.created', 'payment.paid', 'maintenance.assigned', 'lease.created', 'payment.created'];
+const EVENT_CHOICES = ['payment.paid', 'maintenance.assigned', 'user.invited', 'ping'];
+
+function isWebhookActive(w: Webhook): boolean {
+  return w.isActive ?? w.active ?? true;
+}
 
 export default function WebhooksPage(): React.JSX.Element {
   const { can } = useAuth();
@@ -56,16 +60,16 @@ export default function WebhooksPage(): React.JSX.Element {
 
   const openFor = (w: Webhook | null): void => {
     setEditing(w);
-    form.reset({ url: w?.url ?? '', events: '', active: w?.active ?? true });
+    form.reset({ url: w?.url ?? '', events: '', isActive: isWebhookActive(w ?? ({} as Webhook)) });
     setEvents(w?.events ?? []);
     setOpen(true);
   };
 
   const save = useMutation({
-    mutationFn: (v: Values) => {
-      const body = { url: v.url, events, active: v.active ?? true };
-      if (editing) return apiClient.patch(`/webhooks/${editing.id}`, body);
-      return apiClient.post('/webhooks', body);
+    mutationFn: async (v: Values): Promise<unknown> => {
+      // Create accepts {url, events} only; update additionally takes isActive.
+      if (editing) return (await apiClient.patch(`/webhooks/${editing.id}`, { url: v.url, events, isActive: v.isActive ?? true })).data;
+      return (await apiClient.post('/webhooks', { url: v.url, events })).data;
     },
     onSuccess: () => {
       toast.success(editing ? 'Updated successfully.' : 'Created successfully.');
@@ -130,7 +134,7 @@ export default function WebhooksPage(): React.JSX.Element {
               </span>
             ),
           },
-          { header: 'Active', accessorKey: 'active', cell: ({ row }) => ((row.original as Webhook).active ? <Badge variant="success">on</Badge> : <Badge variant="secondary">off</Badge>) },
+          { header: 'Active', accessorKey: 'active', cell: ({ row }) => (isWebhookActive(row.original as Webhook) ? <Badge variant="success">on</Badge> : <Badge variant="secondary">off</Badge>) },
           {
             header: 'Actions', id: 'actions',
             cell: ({ row }) => {
@@ -191,10 +195,12 @@ export default function WebhooksPage(): React.JSX.Element {
                 ))}
               </div>
             </fieldset>
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input type="checkbox" {...form.register('active')} className="h-4 w-4 accent-emerald-600" />
-              Active
-            </label>
+            {editing ? (
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input type="checkbox" {...form.register('isActive')} className="h-4 w-4 accent-emerald-600" />
+                Active
+              </label>
+            ) : null}
             <DialogFooter>
               <Button type="submit" pending={save.isPending}>{editing ? 'Save changes' : 'Create webhook'}</Button>
             </DialogFooter>

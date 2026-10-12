@@ -12,6 +12,7 @@ import { qk } from '@/lib/query-client';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput/PasswordInput';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/Card/Card';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { FormField, FormSelect } from '@/components/common/FormField/FormField';
@@ -37,7 +38,7 @@ const passwordSchema = z.object({
 type PasswordValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsPage(): React.JSX.Element {
-  const { can, refreshUser } = useAuth();
+  const { can, refreshUser, user } = useAuth();
   const queryClient = useQueryClient();
   /** Local override only — falls back to server data until the user types. */
   const [orgName, setOrgName] = useState<string | undefined>(undefined);
@@ -51,7 +52,13 @@ export default function SettingsPage(): React.JSX.Element {
     queryFn: async () => (await apiClient.get('/organizations/me/settings')).data as OrgSettings,
   });
 
-  const profile = useForm<ProfileValues>({ resolver: zodResolver(profileSchema) });
+  const profile = useForm<ProfileValues>({
+    resolver: zodResolver(profileSchema),
+    values: useMemo(
+      () => ({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '' }),
+      [user?.firstName, user?.lastName],
+    ),
+  });
   const locValues = useMemo<SettingsValues>(
     () => ({
       currency: String(settingsQ.data?.currency ?? 'EGP'),
@@ -146,10 +153,10 @@ export default function SettingsPage(): React.JSX.Element {
               </div>
               <form onSubmit={pwd.handleSubmit((v) => changePwd.mutate(v))} className="space-y-4" noValidate>
                 <FormField label="Current password" htmlFor="s-cur" error={pwd.formState.errors.currentPassword?.message}>
-                  <Input id="s-cur" type="password" autoComplete="current-password" {...pwd.register('currentPassword')} />
+                  <PasswordInput id="s-cur" autoComplete="current-password" {...pwd.register('currentPassword')} />
                 </FormField>
                 <FormField label="New password" htmlFor="s-new" error={pwd.formState.errors.newPassword?.message}>
-                  <Input id="s-new" type="password" autoComplete="new-password" {...pwd.register('newPassword')} />
+                  <PasswordInput id="s-new" autoComplete="new-password" {...pwd.register('newPassword')} />
                 </FormField>
                 <Button type="submit" pending={changePwd.isPending}>Change password</Button>
               </form>

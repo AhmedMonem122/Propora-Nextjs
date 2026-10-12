@@ -1,11 +1,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Controller, useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodSchemaResolver } from '@/lib/rhf';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Eye, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
+import { qk } from '@/lib/query-client';
+import { normalizeList } from '@/lib/list';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useCreateEntity, useDeleteEntity, useUpdateEntity } from '@/hooks/useEntityMutations';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
@@ -14,13 +19,21 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
 import { StatusBadge } from '@/components/common/StatusBadge/StatusBadge';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
+import { Textarea } from '@/components/ui/Textarea/Textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select/Select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { FormField } from '@/components/common/FormField/FormField';
+import { CurrencyInput } from '@/components/common/CurrencyInput/CurrencyInput';
 import { MaintenanceForm } from '@/components/domain/maintenance/MaintenanceForm/MaintenanceForm';
 import { formatDateOnly } from '@/lib/format';
-import type { MaintenanceRequest } from '@/types/api';
+import type { MaintenanceRequest, OrgUser } from '@/types/api';
 import type { ColumnDef } from '@tanstack/react-table';
+
+const resolveSchema = z.object({
+  cost: z.coerce.number().min(0, 'Cost must be zero or more.'),
+  notes: z.string().optional().or(z.literal('')),
+});
+type ResolveValues = z.infer<typeof resolveSchema>;
 
 export default function MaintenancePage(): React.JSX.Element {
   const { can } = useAuth();
@@ -40,6 +53,16 @@ export default function MaintenancePage(): React.JSX.Element {
   const [viewing, setViewing] = useState<MaintenanceRequest | null>(null);
   const [assigning, setAssigning] = useState<MaintenanceRequest | null>(null);
   const [assigneeId, setAssigneeId] = useState('');
+  const [resolving, setResolving] = useState<MaintenanceRequest | null>(null);
+
+  const resolveForm = useForm<ResolveValues>({ resolver: zodSchemaResolver(resolveSchema) });
+
+  const teamQ = useQuery({
+    queryKey: qk.users({ limit: 100 }),
+    queryFn: async () => normalizeList<OrgUser>((await apiClient.get('/users', { params: { limit: 100 } })).data),
+    enabled: Boolean(assigning),
+    staleTime: 60_000,
+  });
 
   const create = useCreateEntity<Record<string, unknown>>('/maintenance/requests', [['maintenance']]);
   const update = useUpdateEntity<Record<string, unknown>>((id) => `/maintenance/requests/${id}`, [['maintenance']]);
@@ -161,10 +184,10 @@ export default function MaintenancePage(): React.JSX.Element {
                     </Button>
                   ))}
                   <Button
-                    size="sm" variant="accent" pending={act.isPending}
-                    onClick={() => act.mutate({ id: viewing.id, kind: 'resolve' }, { onSuccess: () => setViewing(null) })}
+                    size="sm" variant="accent"
+                    onClick={() => { setResolving(viewing); resolveForm.reset({ cost: undefined as unknown as number, notes: '' }); }}
                   >
-                    Resolve
+                    Resolve…
                   </Button>
                 </div>
               ) : null}
@@ -172,12 +195,55 @@ export default function MaintenancePage(): React.JSX.Element {
           ) : null}
         </DialogContent>
       </Dialog>
+      <Dialog open={Boolean(resolving)} onOpenChange={(v) => { if (!v) setResolving(null); }}>
+        <DialogContent aria-label="Resolve request">
+          <DialogHeader><DialogTitle>Resolve request</DialogTitle></DialogHeader>
+          <form
+            onSubmit={resolveForm.handleSubmit((v) => {
+              if (!resolving) return;
+              const body: Record<string, unknown> = { cost: v.cost };
+              if (v.notes) body.notes = v.notes;
+              act.mutate({ id: resolving.id, kind: 'resolve', body }, { onSuccess: () => { setResolving(null); setViewing(null); } });
+            })}
+            className="space-y-4"
+            noValidate
+          >
+            <FormField label="Cost" htmlFor="m-cost" error={resolveForm.formState.errors.cost?.message}>
+              <Controller
+                control={resolveForm.control}
+                name="cost"
+                render={({ field }) => (
+                  <CurrencyInput id="m-cost" value={field.value ?? ''} onValueChange={(x) => field.onChange(x.floatValue)} />
+                )}
+              />
+            </FormField>
+            <FormField label="Resolution notes" htmlFor="m-notes">
+              <Textarea id="m-notes" rows={3} {...resolveForm.register('notes')} />
+            </FormField>
+            <DialogFooter>
+              <Button type="submit" pending={act.isPending}>Resolve</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={Boolean(assigning)} onOpenChange={(v) => { if (!v) setAssigning(null); }}>
         <DialogContent aria-label="Assign request">
           <DialogHeader><DialogTitle>Assign technician</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <FormField label="Assignee user ID" htmlFor="m-assign">
-              <Input id="m-assign" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} placeholder="User id from the Users page" />
+            <FormField label="Team member" htmlFor="m-assign">
+              <Select value={assigneeId || 'none'} onValueChange={(v) => setAssigneeId(v === 'none' ? '' : v)}>
+                <SelectTrigger id="m-assign">
+                  <SelectValue placeholder="Choose a team member…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Choose a team member…</SelectItem>
+                  {(teamQ.data?.rows ?? []).map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {[u.firstName, u.lastName].filter(Boolean).join(' ') || u.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormField>
             <DialogFooter>
               <Button

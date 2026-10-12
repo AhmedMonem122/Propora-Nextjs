@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
+import { Loader2 } from 'lucide-react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
@@ -36,17 +37,29 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, pending, disabled, asChild, children, ...props }, ref) => {
-    const Comp = asChild ? Slot : 'button';
+    // asChild (Slot) requires exactly one child — never inject the spinner there.
+    if (asChild) {
+      return (
+        <Slot
+          ref={ref}
+          className={cn(buttonVariants({ variant, size, className }))}
+          {...props}
+        >
+          {children}
+        </Slot>
+      );
+    }
     return (
-      <Comp
+      <button
         ref={ref}
         className={cn(buttonVariants({ variant, size, className }))}
         disabled={disabled ?? pending}
         aria-busy={pending || undefined}
         {...props}
       >
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
         {children}
-      </Comp>
+      </button>
     );
   },
 );

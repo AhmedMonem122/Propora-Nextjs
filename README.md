@@ -38,7 +38,7 @@ npm run dev                  # http://localhost:3000
 | `npm run dev` | Dev server (Turbopack) |
 | `npx tsc --noEmit` | Strict typecheck (no `any`) |
 | `npm run lint` | ESLint (Next + react-compiler rules) |
-| `npx vitest run` | Unit tests (28 green) |
+| `npx vitest run` | Unit tests (35 green) |
 | `npm run test:e2e` | Playwright smoke (needs `npx playwright install`) |
 | `npm run build` | Production build (must stay green) |
 

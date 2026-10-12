@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Building2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle/ThemeToggle';
 import { Button } from '@/components/ui/Button/Button';
+import { MobileNav } from './MobileNav';
 
 const LINKS = [
   { href: '/', label: 'Home' },
@@ -33,14 +34,15 @@ export function SiteHeader(): React.JSX.Element {
             </li>
           ))}
         </ul>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <ThemeToggle />
           <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
             <Link href="/login">Log in</Link>
           </Button>
-          <Button variant="accent" size="sm" asChild>
+          <Button variant="accent" size="sm" asChild className="hidden sm:inline-flex">
             <Link href="/register">Get started</Link>
           </Button>
+          <MobileNav />
         </div>
       </nav>
     </header>

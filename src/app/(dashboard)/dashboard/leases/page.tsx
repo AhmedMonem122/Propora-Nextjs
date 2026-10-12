@@ -1,9 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodSchemaResolver } from '@/lib/rhf';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Eye, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Plus, ReceiptText, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -13,12 +16,25 @@ import { DataTable } from '@/components/common/DataTable/DataTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
 import { StatusBadge } from '@/components/common/StatusBadge/StatusBadge';
 import { Button } from '@/components/ui/Button/Button';
+import { Input } from '@/components/ui/Input/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select/Select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
+import { FormField, FormSelect } from '@/components/common/FormField/FormField';
+import { CurrencyInput } from '@/components/common/CurrencyInput/CurrencyInput';
 import { LeaseForm } from '@/components/domain/leases/LeaseForm/LeaseForm';
 import { formatDateOnly, formatMoney } from '@/lib/format';
 import type { Lease } from '@/types/api';
 import type { ColumnDef } from '@tanstack/react-table';
+
+const paymentSchema = z.object({
+  amount: z.coerce.number().min(0.01, 'Amount must be positive.'),
+  dueDate: z.string().min(1, 'Due date is required.'),
+  type: z.enum(['RENT', 'DEPOSIT', 'FEE', 'OTHER']).optional().or(z.literal('')),
+  method: z.enum(['BANK_TRANSFER', 'CASH', 'CARD', 'CHECK', 'ONLINE']).optional().or(z.literal('')),
+  status: z.enum(['PENDING', 'PAID', 'OVERDUE', 'FAILED', 'REFUNDED']).optional().or(z.literal('')),
+  notes: z.string().optional().or(z.literal('')),
+});
+type PaymentValues = z.infer<typeof paymentSchema>;
 
 export default function LeasesPage(): React.JSX.Element {
   const { can } = useAuth();
@@ -32,6 +48,21 @@ export default function LeasesPage(): React.JSX.Element {
   const [editing, setEditing] = useState<Lease | null>(null);
   const [deleting, setDeleting] = useState<Lease | null>(null);
   const [viewing, setViewing] = useState<Lease | null>(null);
+  const [paying, setPaying] = useState<Lease | null>(null);
+
+  const payForm = useForm<PaymentValues>({ resolver: zodSchemaResolver(paymentSchema) });
+
+  const recordPayment = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
+      apiClient.post(`/leases/${id}/payments`, body),
+    onSuccess: () => {
+      toast.success('Created successfully.');
+      setPaying(null);
+      payForm.reset();
+      void queryClient.invalidateQueries({ queryKey: ['payments'] });
+    },
+    onError: (e) => toast.error(getApiMessage(e, 'Operation failed.')),
+  });
 
   const create = useCreateEntity<Record<string, unknown>>('/leases', [['leases']]);
   const update = useUpdateEntity<Record<string, unknown>>((id) => `/leases/${id}`, [['leases']]);
@@ -70,6 +101,11 @@ export default function LeasesPage(): React.JSX.Element {
               <Pencil className="h-4 w-4" aria-hidden="true" />
             </Button>
           ) : null}
+          {can('payment:create') ? (
+            <Button variant="ghost" size="icon" aria-label="Record payment" onClick={() => { setPaying(row.original); payForm.reset(); }}>
+              <ReceiptText className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          ) : null}
           {can('lease:delete') ? (
             <Button variant="ghost" size="icon" aria-label="Delete lease" onClick={() => setDeleting(row.original)}>
               <Trash2 className="h-4 w-4 text-red-600" aria-hidden="true" />
@@ -78,7 +114,7 @@ export default function LeasesPage(): React.JSX.Element {
         </div>
       ),
     },
-  ], [can]);
+  ], [can, payForm]);
 
   return (
     <>
@@ -125,6 +161,69 @@ export default function LeasesPage(): React.JSX.Element {
       />
       <ConfirmDialog open={Boolean(deleting)} onOpenChange={(v) => { if (!v) setDeleting(null); }} pending={remove.isPending}
         onConfirm={() => { if (deleting) remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) }); }} />
+      <Dialog open={Boolean(paying)} onOpenChange={(v) => { if (!v) setPaying(null); }}>
+        <DialogContent aria-label="Record payment">
+          <DialogHeader><DialogTitle>Record payment for lease</DialogTitle></DialogHeader>
+          <form
+            onSubmit={payForm.handleSubmit((v) => {
+              if (!paying) return;
+              const body: Record<string, unknown> = {};
+              for (const [k, val] of Object.entries(v)) {
+                if (val === '' || val === undefined || (typeof val === 'number' && Number.isNaN(val))) continue;
+                body[k] = val;
+              }
+              recordPayment.mutate({ id: paying.id, body });
+            })}
+            className="grid grid-cols-2 gap-4"
+            noValidate
+          >
+            <FormField label="Amount" htmlFor="lp-amount" error={payForm.formState.errors.amount?.message}>
+              <Controller
+                control={payForm.control}
+                name="amount"
+                render={({ field }) => (
+                  <CurrencyInput id="lp-amount" value={field.value ?? ''} onValueChange={(x) => field.onChange(x.floatValue)} />
+                )}
+              />
+            </FormField>
+            <FormField label="Due date" htmlFor="lp-due" error={payForm.formState.errors.dueDate?.message}>
+              <Input id="lp-due" type="date" {...payForm.register('dueDate')} />
+            </FormField>
+            <FormField label="Type" htmlFor="lp-type">
+              <FormSelect id="lp-type" {...payForm.register('type')}>
+                <option value="">—</option>
+                <option value="RENT">Rent</option>
+                <option value="DEPOSIT">Deposit</option>
+                <option value="FEE">Fee</option>
+                <option value="OTHER">Other</option>
+              </FormSelect>
+            </FormField>
+            <FormField label="Method" htmlFor="lp-method">
+              <FormSelect id="lp-method" {...payForm.register('method')}>
+                <option value="">—</option>
+                <option value="BANK_TRANSFER">Bank transfer</option>
+                <option value="CASH">Cash</option>
+                <option value="CARD">Card</option>
+                <option value="CHECK">Check</option>
+                <option value="ONLINE">Online</option>
+              </FormSelect>
+            </FormField>
+            <FormField label="Status" htmlFor="lp-status" className="col-span-2">
+              <FormSelect id="lp-status" {...payForm.register('status')}>
+                <option value="">—</option>
+                <option value="PENDING">Pending</option>
+                <option value="PAID">Paid</option>
+                <option value="OVERDUE">Overdue</option>
+                <option value="FAILED">Failed</option>
+                <option value="REFUNDED">Refunded</option>
+              </FormSelect>
+            </FormField>
+            <DialogFooter className="col-span-2">
+              <Button type="submit" pending={recordPayment.isPending}>Record payment</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={Boolean(viewing)} onOpenChange={(v) => { if (!v) setViewing(null); }}>
         <DialogContent aria-label="Lease details">
           <DialogHeader>

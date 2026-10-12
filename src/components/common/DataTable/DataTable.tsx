@@ -2,12 +2,13 @@
 
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/Button/Button';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table/Table';
 import { EmptyState } from '@/components/common/EmptyState/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState/ErrorState';
+import { getApiMessage, getApiStatus } from '@/lib/api-client';
 import type { PaginatedMeta } from '@/types/api';
 
 interface DataTableProps<TData> {
@@ -58,7 +59,23 @@ export function DataTable<TData>({
     );
   }
 
-  if (error) return <ErrorState onRetry={onRetry} />;
+  if (error) {
+    // 403 is a permission state, not a crash: show the backend's own words.
+    if (getApiStatus(error) === 403) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-6 py-14 text-center" role="alert">
+          <span className="rounded-full bg-muted p-3">
+            <Lock className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+          </span>
+          <p className="font-semibold">{t('noPermissionTitle')}</p>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            {getApiMessage(error, t('noPermissionBody'))}
+          </p>
+        </div>
+      );
+    }
+    return <ErrorState message={getApiMessage(error) || undefined} onRetry={onRetry} />;
+  }
 
   if (data.length === 0) return <EmptyState title={emptyTitle} body={emptyBody} />;
 

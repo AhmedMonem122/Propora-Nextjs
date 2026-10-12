@@ -259,6 +259,7 @@ export interface Webhook {
   events?: string[] | null;
   secret?: string | null;
   active?: boolean;
+  isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

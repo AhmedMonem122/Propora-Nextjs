@@ -20,6 +20,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
 import { StatusBadge } from '@/components/common/StatusBadge/StatusBadge';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput/PasswordInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select/Select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { FormField } from '@/components/common/FormField/FormField';
@@ -28,8 +29,8 @@ import type { ColumnDef } from '@tanstack/react-table';
 
 const inviteSchema = z.object({
   email: z.string().email('Enter a valid email.'),
-  firstName: z.string().optional().or(z.literal('')),
-  lastName: z.string().optional().or(z.literal('')),
+  firstName: z.string().min(1, 'First name is required.'),
+  lastName: z.string().min(1, 'Last name is required.'),
   password: z.string().min(8, 'Temporary password must be at least 8 characters.'),
 });
 type InviteValues = z.infer<typeof inviteSchema>;
@@ -55,23 +56,25 @@ export default function UsersPage(): React.JSX.Element {
   const [deleting, setDeleting] = useState<OrgUser | null>(null);
   const [rolesFor, setRolesFor] = useState<OrgUser | null>(null);
   const [roleIds, setRoleIds] = useState<string[]>([]);
+  const [inviteRoleIds, setInviteRoleIds] = useState<string[]>([]);
 
   const invite = useForm<InviteValues>({ resolver: zodResolver(inviteSchema) });
   const remove = useDeleteEntity((id) => `/users/${id}`, [['users']]);
 
   const sendInvite = useMutation({
-    mutationFn: (v: InviteValues) => apiClient.post('/users', v),
+    mutationFn: (v: InviteValues) => apiClient.post('/users', { ...v, roleIds: inviteRoleIds }),
     onSuccess: () => {
       toast.success('Created successfully.');
       setInviteOpen(false);
       invite.reset();
+      setInviteRoleIds([]);
       void queryClient.invalidateQueries({ queryKey: ['users'] });
     },
     onError: (e) => toast.error(getApiMessage(e, 'Operation failed.')),
   });
 
   const saveRoles = useMutation({
-    mutationFn: ({ id, roles }: { id: string; roles: string[] }) => apiClient.patch(`/users/${id}/roles`, { roles }),
+    mutationFn: ({ id, roleIds }: { id: string; roleIds: string[] }) => apiClient.patch(`/users/${id}/roles`, { roleIds }),
     onSuccess: () => {
       toast.success('Updated successfully.');
       setRolesFor(null);
@@ -135,7 +138,7 @@ export default function UsersPage(): React.JSX.Element {
         reloading={list.isFetching}
         actions={
           canCreate ? (
-            <Button size="sm" variant="accent" onClick={() => setInviteOpen(true)}>
+            <Button size="sm" variant="accent" onClick={() => { invite.reset(); setInviteRoleIds([]); setInviteOpen(true); }}>
               <Plus className="h-4 w-4" aria-hidden="true" /> Invite user
             </Button>
           ) : undefined
@@ -165,16 +168,34 @@ export default function UsersPage(): React.JSX.Element {
               <Input id="u-email" type="email" autoComplete="email" {...invite.register('email')} />
             </FormField>
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="First name" htmlFor="u-first">
+              <FormField label="First name" htmlFor="u-first" error={invite.formState.errors.firstName?.message}>
                 <Input id="u-first" {...invite.register('firstName')} />
               </FormField>
-              <FormField label="Last name" htmlFor="u-last">
+              <FormField label="Last name" htmlFor="u-last" error={invite.formState.errors.lastName?.message}>
                 <Input id="u-last" {...invite.register('lastName')} />
               </FormField>
             </div>
             <FormField label="Temporary password" htmlFor="u-pass" error={invite.formState.errors.password?.message}>
-              <Input id="u-pass" type="password" autoComplete="new-password" {...invite.register('password')} />
+              <PasswordInput id="u-pass" autoComplete="new-password" {...invite.register('password')} />
             </FormField>
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium">Initial roles (optional)</legend>
+              <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border p-2">
+                {(rolesQ.data?.rows ?? []).map((r) => (
+                  <label key={r.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">
+                    <input
+                      type="checkbox"
+                      checked={inviteRoleIds.includes(r.id)}
+                      onChange={() =>
+                        setInviteRoleIds((prev) => (prev.includes(r.id) ? prev.filter((x) => x !== r.id) : [...prev, r.id]))
+                      }
+                      className="h-4 w-4 accent-emerald-600"
+                    />
+                    <span className="font-medium">{r.name}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <DialogFooter>
               <Button type="submit" pending={sendInvite.isPending}>Send invite</Button>
             </DialogFooter>
@@ -201,10 +222,7 @@ export default function UsersPage(): React.JSX.Element {
             <Button
               pending={saveRoles.isPending}
               onClick={() => {
-                if (rolesFor) {
-                  const names = (rolesQ.data?.rows ?? []).filter((r) => roleIds.includes(r.id)).map((r) => r.name);
-                  saveRoles.mutate({ id: rolesFor.id, roles: names });
-                }
+                if (rolesFor) saveRoles.mutate({ id: rolesFor.id, roleIds });
               }}
             >
               <Pencil className="h-4 w-4" aria-hidden="true" /> Save roles

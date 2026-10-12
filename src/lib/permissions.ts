@@ -22,14 +22,22 @@ export type PermissionName =
   (typeof PERMISSIONS)[keyof typeof PERMISSIONS][number] | (string & {});
 
 export function normalizePermissions(input: unknown): string[] {
-  if (!Array.isArray(input)) return [];
-  const out: string[] = [];
-  for (const item of input) {
-    if (typeof item === 'string') out.push(item);
-    else if (item && typeof item === 'object' && 'name' in item && typeof item.name === 'string')
-      out.push(item.name);
+  if (Array.isArray(input)) {
+    const out: string[] = [];
+    for (const item of input) {
+      if (typeof item === 'string') out.push(item);
+      else if (item && typeof item === 'object' && 'name' in item && typeof item.name === 'string')
+        out.push(item.name);
+    }
+    return [...new Set(out)];
   }
-  return [...new Set(out)];
+  // The API may serialize grants as a map: { "property:read": true, ... }
+  if (input && typeof input === 'object') {
+    return Object.entries(input as Record<string, unknown>)
+      .filter(([, v]) => Boolean(v) && typeof v !== 'object')
+      .map(([k]) => k);
+  }
+  return [];
 }
 
 export function roleNames(roles: unknown): string[] {
@@ -37,6 +45,18 @@ export function roleNames(roles: unknown): string[] {
   return roles
     .map((r) => (typeof r === 'string' ? r : r?.name))
     .filter((n): n is string => typeof n === 'string');
+}
+
+/**
+ * The org owner is omnipotent server-side but the API returns an empty
+ * permission set for the role — gate them open client-side (a wrongly shown
+ * button still 403s cleanly, enforced by the backend).
+ */
+export function isOwnerRole(roles: string[]): boolean {
+  return roles.some((r) => {
+    const n = r.toLowerCase();
+    return n === 'organization_owner' || n === 'owner' || n === 'superadmin' || n === 'super_admin';
+  });
 }
 
 /** UI gating only — authorization is enforced by the backend. Never trust the client. */

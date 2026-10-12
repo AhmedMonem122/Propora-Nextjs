@@ -39,11 +39,18 @@ export default function RolesPage(): React.JSX.Element {
   const permsQ = useQuery({
     queryKey: qk.permissions,
     queryFn: async () => {
-      const d = (await apiClient.get('/roles/permissions')).data;
-      if (Array.isArray(d)) return d as string[];
-      if (Array.isArray(d?.data)) return d.data as string[];
-      if (Array.isArray(d?.permissions)) return d.permissions as string[];
-      return [] as string[];
+      const d = (await apiClient.get('/roles/permissions')).data as unknown;
+      const arr = Array.isArray(d)
+        ? d
+        : Array.isArray((d as { data?: unknown })?.data)
+          ? ((d as { data: unknown[] }).data)
+          : Array.isArray((d as { permissions?: unknown })?.permissions)
+            ? ((d as { permissions: unknown[] }).permissions)
+            : [];
+      // Catalog entries are objects ({name, resource, action, ...}) — use names.
+      return arr
+        .map((p: unknown) => (typeof p === 'string' ? p : (p as { name?: unknown })?.name))
+        .filter((n): n is string => typeof n === 'string' && n.length > 0);
     },
     staleTime: 5 * 60_000,
   });

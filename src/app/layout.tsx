@@ -27,12 +27,14 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: '#0b3b5c' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }): React.JSX.Element {
+  // Vercel-only: /_vercel/* scripts 404 on local servers and pollute the console.
+  const vercelProd = process.env.VERCEL === '1';
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased`}>
         <Providers>{children}</Providers>
-        <Analytics />
-        <SpeedInsights />
+        {vercelProd ? <Analytics /> : null}
+        {vercelProd ? <SpeedInsights /> : null}
       </body>
     </html>
   );

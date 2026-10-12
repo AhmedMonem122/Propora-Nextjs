@@ -3,23 +3,28 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { getApiMessage } from '@/lib/api-client';
 import { Sidebar } from '@/components/layout/Sidebar/Sidebar';
 import { Topbar } from '@/components/layout/Topbar/Topbar';
 import { CommandPalette } from '@/components/common/CommandPalette/CommandPalette';
 import { RealtimeProvider } from '@/components/Realtime/RealtimeProvider';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
+import { Button } from '@/components/ui/Button/Button';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }): React.JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, sessionError, retrySession } = useAuth();
   const [mobileNav, setMobileNav] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
 
+  // Definitive logout only (no session / revoked). Transient session errors
+  // keep the user here with a retry — they must never bounce to login.
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-  }, [isLoading, isAuthenticated, router, pathname]);
+    if (!isLoading && !isAuthenticated && !sessionError)
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+  }, [isLoading, isAuthenticated, sessionError, router, pathname]);
 
   const toggleCmd = useCallback(() => setCmdOpen((v) => !v), []);
 
@@ -35,6 +40,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [toggleCmd]);
 
   if (isLoading || !isAuthenticated) {
+    // Transient session failure (flaky network): stay + retry, never bounce.
+    if (!isLoading && sessionError) {
+      return (
+        <main className="mx-auto flex min-h-screen w-full max-w-xl flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <p className="text-lg font-bold">Connection interrupted</p>
+          <p className="text-sm text-muted-foreground">
+            {getApiMessage(sessionError, 'We could not reach your session. Your login is still valid — retry.') }
+          </p>
+          <Button variant="outline" onClick={() => void retrySession()}>
+            Retry
+          </Button>
+        </main>
+      );
+    }
     return (
       <div className="flex min-h-screen" role="status" aria-label="Loading">
         <div className="hidden w-60 shrink-0 border-r p-3 lg:block">

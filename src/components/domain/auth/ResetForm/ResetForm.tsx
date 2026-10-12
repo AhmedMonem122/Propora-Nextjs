@@ -5,9 +5,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { apiClient, getApiMessage, setAccessToken } from '@/lib/api-client';
+import { apiClient, applyFormErrors, getApiMessage, setAccessToken } from '@/lib/api-client';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput/PasswordInput';
 import { Label } from '@/components/ui/Label/Label';
 
 const schema = z.object({
@@ -20,7 +21,7 @@ type Values = z.infer<typeof schema>;
 
 export function ResetForm(): React.JSX.Element {
   const router = useRouter();
-  const { register, handleSubmit, formState } = useForm<Values>({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, formState, setError } = useForm<Values>({ resolver: zodResolver(schema) });
 
   const onSubmit = async (v: Values): Promise<void> => {
     try {
@@ -30,6 +31,7 @@ export function ResetForm(): React.JSX.Element {
       router.replace('/dashboard');
     } catch (e) {
       toast.error(getApiMessage(e, 'Reset failed.'));
+      applyFormErrors(e, setError, ['email', 'otp', 'newPassword']);
     }
   };
 
@@ -47,7 +49,7 @@ export function ResetForm(): React.JSX.Element {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="rp-password">New password</Label>
-        <Input id="rp-password" type="password" autoComplete="new-password" {...register('newPassword')} />
+        <PasswordInput id="rp-password" autoComplete="new-password" {...register('newPassword')} />
         {formState.errors.newPassword ? <p className="text-xs text-red-600" role="alert">{formState.errors.newPassword.message}</p> : null}
       </div>
       <Button type="submit" className="w-full" pending={formState.isSubmitting}>
