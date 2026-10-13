@@ -17,6 +17,15 @@ import { Input } from '@/components/ui/Input/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select/Select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { FormField, FormSelect } from '@/components/common/FormField/FormField';
+import {
+  BuildingPicker,
+  LeasePicker,
+  MaintenancePicker,
+  PaymentPicker,
+  PropertyPicker,
+  ResidentPicker,
+  UnitPicker,
+} from '@/components/common/EntityPicker/pickers';
 import { formatBytes, formatDateOnly } from '@/lib/format';
 import type { Document } from '@/types/api';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -45,6 +54,12 @@ export default function DocumentsPage(): React.JSX.Element {
   const [file, setFile] = useState<File | null>(null);
   const [entityType, setEntityType] = useState('lease');
   const [entityId, setEntityId] = useState('');
+  const [linkPropertyId, setLinkPropertyId] = useState<string | null>(null);
+  const setTypeAndReset = (t: string) => {
+    setEntityType(t);
+    setEntityId('');
+    setLinkPropertyId(null);
+  };
   const [docCategory, setDocCategory] = useState('OTHER');
   const [name, setName] = useState('');
   const [progress, setProgress] = useState<number | null>(null);
@@ -57,10 +72,11 @@ export default function DocumentsPage(): React.JSX.Element {
       if (!file) throw new Error('Choose a file first.');
       const err = precheck(file);
       if (err) throw new Error(err);
-      if (!entityId) throw new Error('Entity ID is required.');
+      if (!entityId) throw new Error('Choose the linked record first.');
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('entityType', entityType);
+      // Backend entity vocabulary uses maintenance_request (underscore).
+      fd.append('entityType', entityType === 'maintenance' ? 'maintenance_request' : entityType);
       fd.append('entityId', entityId);
       if (name) fd.append('name', name);
       if (docCategory) fd.append('category', docCategory);
@@ -161,13 +177,14 @@ export default function DocumentsPage(): React.JSX.Element {
             </FormField>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Entity type" htmlFor="doc-et">
-                <FormSelect id="doc-et" value={entityType} onChange={(e) => setEntityType(e.target.value)}>
+                <FormSelect id="doc-et" value={entityType} onChange={(e) => setTypeAndReset(e.target.value)}>
                   <option value="lease">lease</option>
                   <option value="unit">unit</option>
                   <option value="resident">resident</option>
                   <option value="property">property</option>
                   <option value="payment">payment</option>
                   <option value="maintenance">maintenance</option>
+                  <option value="building">building</option>
                 </FormSelect>
               </FormField>
               <FormField label="Category" htmlFor="doc-cat">
@@ -176,8 +193,39 @@ export default function DocumentsPage(): React.JSX.Element {
                 </FormSelect>
               </FormField>
             </div>
-            <FormField label="Entity ID" htmlFor="doc-eid">
-              <Input id="doc-eid" value={entityId} onChange={(e) => setEntityId(e.target.value)} placeholder="ID of the linked record" />
+            <FormField label="Linked record" htmlFor="doc-entity">
+              {entityType === 'lease' ? (
+                <LeasePicker id="doc-entity" value={entityId || null} onChange={(id) => setEntityId(id ?? '')} />
+              ) : entityType === 'unit' ? (
+                <UnitPicker id="doc-entity" value={entityId || null} onChange={(id) => setEntityId(id ?? '')} />
+              ) : entityType === 'resident' ? (
+                <ResidentPicker id="doc-entity" value={entityId || null} onChange={(id) => setEntityId(id ?? '')} />
+              ) : entityType === 'property' ? (
+                <PropertyPicker id="doc-entity" value={entityId || null} onChange={(id) => setEntityId(id ?? '')} />
+              ) : entityType === 'payment' ? (
+                <PaymentPicker id="doc-entity" value={entityId || null} onChange={(id) => setEntityId(id ?? '')} />
+              ) : entityType === 'maintenance' ? (
+                <MaintenancePicker id="doc-entity" value={entityId || null} onChange={(id) => setEntityId(id ?? '')} />
+              ) : (
+                <div className="space-y-2">
+                  <PropertyPicker
+                    id="doc-entity-prop"
+                    value={linkPropertyId}
+                    onChange={(id) => {
+                      setLinkPropertyId(id);
+                      setEntityId('');
+                    }}
+                  />
+                  {linkPropertyId ? (
+                    <BuildingPicker
+                      id="doc-entity"
+                      propertyId={linkPropertyId}
+                      value={entityId || null}
+                      onChange={(id) => setEntityId(id ?? '')}
+                    />
+                  ) : null}
+                </div>
+              )}
             </FormField>
             <FormField label="Display name (optional)" htmlFor="doc-name">
               <Input id="doc-name" value={name} onChange={(e) => setName(e.target.value)} />

@@ -48,12 +48,15 @@ export function UnitForm({
   initial,
   pending,
   onSubmit,
+  buildingSlot,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   initial?: Unit | null;
   pending: boolean;
   onSubmit: (body: Record<string, unknown>) => void;
+  /** Optional node rendered first (e.g. a building picker when the parent is unknown). */
+  buildingSlot?: React.ReactNode;
 }): React.JSX.Element {
   const { register, handleSubmit, reset, control, formState } = useForm<UnitValues>({
     resolver: zodSchemaResolver(unitSchema),
@@ -77,6 +80,7 @@ export function UnitForm({
           <DialogTitle>{initial ? 'Edit unit' : 'New unit'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit((v) => onSubmit(clean(v)))} className="grid grid-cols-1 gap-4 sm:grid-cols-2" noValidate>
+          {buildingSlot ? <div className="sm:col-span-2">{buildingSlot}</div> : null}
           <FormField label="Name" htmlFor="uf-name" error={formState.errors.name?.message} className="sm:col-span-2">
             <Input id="uf-name" {...register('name')} />
           </FormField>

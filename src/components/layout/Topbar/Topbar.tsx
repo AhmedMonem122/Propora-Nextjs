@@ -27,6 +27,9 @@ export function Topbar({ onMenu, onCommand }: { onMenu: () => void; onCommand: (
       return (res.data?.meta?.total ?? 0) as number;
     },
     staleTime: 30_000,
+    // Cheap single-row poll so the badge stays fresh even without Realtime;
+    // realtime invalidation keeps it instant when available.
+    refetchInterval: 30_000,
   });
 
   const count = unread.data ?? 0;

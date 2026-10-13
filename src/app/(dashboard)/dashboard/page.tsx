@@ -2,9 +2,10 @@
 
 import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
-import { Banknote, Clock, TriangleAlert, PieChart } from 'lucide-react';
+import { Banknote, Building2, Clock, DoorOpen, TriangleAlert, PieChart, Users, Wrench } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
+import { useAuth } from '@/lib/auth-context';
 import { formatMoney, formatNumber } from '@/lib/format';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { StatGridSkeleton } from '@/components/common/Skeletons/Skeletons';
@@ -21,95 +22,191 @@ const OccupancyChart = dynamic(() => import('./OccupancyChart').then((m) => m.Oc
   loading: () => <div className="h-64 animate-pulse rounded-xl bg-muted" />,
 });
 
+async function countOf(path: string, params: Record<string, unknown> = {}): Promise<number> {
+  const res = await apiClient.get(path, { params: { limit: 1, ...params } });
+  const meta = (res.data as { meta?: { total?: number } })?.meta;
+  return typeof meta?.total === 'number' ? meta.total : 0;
+}
+
+function StatCard({ icon: Icon, label, value, tone }: { icon: React.ElementType; label: string; value: string; tone: string }): React.JSX.Element {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-5 pt-5">
+        <span className="rounded-lg bg-muted p-2.5">
+          <Icon className={`h-5 w-5 ${tone}`} aria-hidden="true" />
+        </span>
+        <div>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-xl font-black">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function DashboardOverviewPage(): React.JSX.Element {
+  const { can, user } = useAuth();
+  const showFinancial = can('report:financial');
+  const showOps = can('maintenance:read');
+  const canProps = can('property:read');
+  const canUnits = can('unit:read');
+  const canResidents = can('resident:read');
+  const canLeases = can('lease:read');
+
   const fin = useQuery({
     queryKey: qk.reportsFinancial,
     queryFn: async () => (await apiClient.get('/reports/financial')).data as FinancialReport,
+    enabled: showFinancial,
   });
   const occ = useQuery({
     queryKey: qk.reportsOccupancy,
     queryFn: async () => (await apiClient.get('/reports/occupancy')).data as OccupancyReport,
+    enabled: showFinancial,
   });
 
-  const loading = fin.isLoading || occ.isLoading;
-  const error = fin.error ?? occ.error;
+  const openMaint = useQuery({
+    queryKey: ['overview', 'open-maintenance'],
+    queryFn: () => countOf('/maintenance/requests', { status: 'OPEN' }),
+    enabled: showOps,
+    staleTime: 60_000,
+  });
+  const myMaint = useQuery({
+    queryKey: ['overview', 'my-maintenance', user?.id],
+    queryFn: () => countOf('/maintenance/requests', { assignedToId: user?.id ?? '', status: 'IN_PROGRESS' }),
+    enabled: showOps && Boolean(user?.id),
+    staleTime: 60_000,
+  });
+  const maintUnits = useQuery({
+    queryKey: ['overview', 'maint-units'],
+    queryFn: () => countOf('/units', { status: 'UNDER_MAINTENANCE' }),
+    enabled: showOps && canUnits,
+    staleTime: 60_000,
+  });
+
+  const propCount = useQuery({
+    queryKey: ['overview', 'props'],
+    queryFn: () => countOf('/properties'),
+    enabled: canProps,
+    staleTime: 60_000,
+  });
+  const unitCount = useQuery({
+    queryKey: ['overview', 'units'],
+    queryFn: () => countOf('/units'),
+    enabled: canUnits,
+    staleTime: 60_000,
+  });
+  const residentCount = useQuery({
+    queryKey: ['overview', 'residents'],
+    queryFn: () => countOf('/residents'),
+    enabled: canResidents,
+    staleTime: 60_000,
+  });
+  const leaseCount = useQuery({
+    queryKey: ['overview', 'leases'],
+    queryFn: () => countOf('/leases', { status: 'ACTIVE' }),
+    enabled: canLeases,
+    staleTime: 60_000,
+  });
+
+  const reloadAll = () => {
+    for (const q of [fin, occ, openMaint, myMaint, maintUnits, propCount, unitCount, residentCount, leaseCount]) {
+      void q.refetch();
+    }
+  };
+  const anyFetching = [fin, occ, openMaint, myMaint, maintUnits, propCount, unitCount, residentCount, leaseCount].some(
+    (q) => q.isFetching,
+  );
+
   const currency = (fin.data?.currency as string | undefined) ?? 'EGP';
   const collected = Number(fin.data?.totalCollected ?? 0);
   const pending = Number(fin.data?.totalPending ?? 0);
   const overdue = Number(fin.data?.totalOverdue ?? 0);
   const rate = Number(occ.data?.occupancyRate ?? 0);
 
-  const stats = [
-    { icon: Banknote, label: 'Rent collected', value: formatMoney(collected, currency), tone: 'text-emerald-600' },
-    { icon: Clock, label: 'Pending', value: formatMoney(pending, currency), tone: 'text-amber-600' },
-    { icon: TriangleAlert, label: 'Overdue', value: formatMoney(overdue, currency), tone: 'text-red-600' },
-    { icon: PieChart, label: 'Occupancy rate', value: `${formatNumber(Math.round(rate * 100) / 100)}%`, tone: 'text-sky-600' },
-  ];
+  const finLoading = showFinancial && (fin.isLoading || occ.isLoading);
+  const finError = showFinancial ? (fin.error ?? occ.error) : null;
 
   return (
     <>
       <PageHeader
         title="Overview"
-        description="Financial and occupancy pulse of your portfolio."
-        onReload={() => {
-          void fin.refetch();
-          void occ.refetch();
-        }}
-        reloading={fin.isFetching || occ.isFetching}
+        description="Your workspace at a glance — tailored to your role."
+        onReload={reloadAll}
+        reloading={anyFetching}
       />
-      {loading ? (
-        <StatGridSkeleton />
-      ) : error ? (
-        <ErrorState
-          onRetry={() => {
-            void fin.refetch();
-            void occ.refetch();
-          }}
-        />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {stats.map((s) => (
-              <Card key={s.label}>
-                <CardContent className="flex items-center gap-3 p-5 pt-5">
-                  <span className="rounded-lg bg-muted p-2.5">
-                    <s.icon className={`h-5 w-5 ${s.tone}`} aria-hidden="true" />
-                  </span>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{s.label}</p>
-                    <p className="text-xl font-black">{s.value}</p>
+
+      {showFinancial ? (
+        finLoading ? (
+          <StatGridSkeleton />
+        ) : finError ? (
+          <ErrorState onRetry={reloadAll} />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard icon={Banknote} label="Rent collected" value={formatMoney(collected, currency)} tone="text-emerald-600" />
+              <StatCard icon={Clock} label="Pending" value={formatMoney(pending, currency)} tone="text-amber-600" />
+              <StatCard icon={TriangleAlert} label="Overdue" value={formatMoney(overdue, currency)} tone="text-red-600" />
+              <StatCard icon={PieChart} label="Occupancy rate" value={`${formatNumber(Math.round(rate * 100) / 100)}%`} tone="text-sky-600" />
+            </div>
+            <div className="grid gap-4 lg:grid-cols-5">
+              <Card className="lg:col-span-3">
+                <CardContent className="p-5 pt-5">
+                  <CardTitle>Rent collected</CardTitle>
+                  <CardDescription>Monthly collection trend</CardDescription>
+                  <div className="mt-4 h-64">
+                    <RentChart data={Array.isArray(fin.data?.byMonth) ? (fin.data?.byMonth as Array<{ month: string; collected: number }>) : []} currency={currency} />
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              <Card className="lg:col-span-2">
+                <CardContent className="p-5 pt-5">
+                  <CardTitle>Occupancy</CardTitle>
+                  <CardDescription>
+                    {formatNumber(occ.data?.occupiedUnits)} of {formatNumber(occ.data?.totalUnits)} units occupied
+                  </CardDescription>
+                  <div className="mt-4 h-64">
+                    <OccupancyChart
+                      occupied={Number(occ.data?.occupiedUnits ?? 0)}
+                      vacant={Number(occ.data?.vacantUnits ?? (Number(occ.data?.totalUnits ?? 0) - Number(occ.data?.occupiedUnits ?? 0)))}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )
+      ) : null}
+
+      {showOps ? (
+        <section aria-label="Operations">
+          <h2 className="mb-3 text-lg font-bold">Operations</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatCard icon={Wrench} label="Open requests" value={formatNumber(openMaint.data ?? 0)} tone="text-amber-600" />
+            <StatCard icon={Clock} label="Assigned to me" value={formatNumber(myMaint.data ?? 0)} tone="text-sky-600" />
+            {canUnits ? (
+              <StatCard icon={DoorOpen} label="Units under maintenance" value={formatNumber(maintUnits.data ?? 0)} tone="text-violet-600" />
+            ) : null}
           </div>
-          <div className="grid gap-4 lg:grid-cols-5">
-            <Card className="lg:col-span-3">
-              <CardContent className="p-5 pt-5">
-                <CardTitle>Rent collected</CardTitle>
-                <CardDescription>Monthly collection trend</CardDescription>
-                <div className="mt-4 h-64">
-                  <RentChart data={Array.isArray(fin.data?.byMonth) ? (fin.data?.byMonth as Array<{ month: string; collected: number }>) : []} currency={currency} />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="lg:col-span-2">
-              <CardContent className="p-5 pt-5">
-                <CardTitle>Occupancy</CardTitle>
-                <CardDescription>
-                  {formatNumber(occ.data?.occupiedUnits)} of {formatNumber(occ.data?.totalUnits)} units occupied
-                </CardDescription>
-                <div className="mt-4 h-64">
-                  <OccupancyChart
-                    occupied={Number(occ.data?.occupiedUnits ?? 0)}
-                    vacant={Number(occ.data?.vacantUnits ?? (Number(occ.data?.totalUnits ?? 0) - Number(occ.data?.occupiedUnits ?? 0)))}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      )}
+        </section>
+      ) : null}
+
+      <section aria-label="Portfolio">
+        <h2 className="mb-3 text-lg font-bold">Portfolio</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {canProps ? (
+            <StatCard icon={Building2} label="Properties" value={formatNumber(propCount.data ?? 0)} tone="text-emerald-600" />
+          ) : null}
+          {canUnits ? (
+            <StatCard icon={DoorOpen} label="Units" value={formatNumber(unitCount.data ?? 0)} tone="text-sky-600" />
+          ) : null}
+          {canResidents ? (
+            <StatCard icon={Users} label="Residents" value={formatNumber(residentCount.data ?? 0)} tone="text-violet-600" />
+          ) : null}
+          {canLeases ? (
+            <StatCard icon={Banknote} label="Active leases" value={formatNumber(leaseCount.data ?? 0)} tone="text-amber-600" />
+          ) : null}
+        </div>
+      </section>
     </>
   );
 }

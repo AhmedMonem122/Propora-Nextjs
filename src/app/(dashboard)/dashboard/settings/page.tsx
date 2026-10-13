@@ -1,13 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
+import { phoneField } from '@/schemas/phone';
+import { PhoneInput } from '@/components/common/PhoneInput/PhoneInput';
 import { qk } from '@/lib/query-client';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { Button } from '@/components/ui/Button/Button';
@@ -21,6 +23,7 @@ import type { Organization, OrgSettings } from '@/types/api';
 const profileSchema = z.object({
   firstName: z.string().optional().or(z.literal('')),
   lastName: z.string().optional().or(z.literal('')),
+  phone: phoneField(),
 });
 type ProfileValues = z.infer<typeof profileSchema>;
 
@@ -69,6 +72,15 @@ export default function SettingsPage(): React.JSX.Element {
     [settingsQ.dataUpdatedAt],
   );
   const loc = useForm<SettingsValues>({ resolver: zodResolver(settingsSchema), values: locValues });
+  // One-way server→form sync, guarded by a stamp ref so user typing is
+  // never clobbered (fixes values-overwrite race on slow loads).
+  const appliedSettingsAt = useRef<number>(0);
+  useEffect(() => {
+    if (settingsQ.data && appliedSettingsAt.current !== settingsQ.dataUpdatedAt) {
+      appliedSettingsAt.current = settingsQ.dataUpdatedAt;
+      if (!loc.formState.isDirty) loc.reset(locValues);
+    }
+  }, [settingsQ.dataUpdatedAt, settingsQ.data, loc, locValues]);
   const pwd = useForm<PasswordValues>({ resolver: zodResolver(passwordSchema) });
 
   const saveProfile = useMutation({
@@ -138,6 +150,21 @@ export default function SettingsPage(): React.JSX.Element {
                 </FormField>
                 <FormField label="Last name" htmlFor="s-last">
                   <Input id="s-last" autoComplete="family-name" {...profile.register('lastName')} />
+                </FormField>
+                <FormField label="Phone" htmlFor="s-phone" error={profile.formState.errors.phone?.message} className="col-span-2">
+                  <Controller
+                    control={profile.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <PhoneInput
+                        id="s-phone"
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        error={profile.formState.errors.phone?.message}
+                      />
+                    )}
+                  />
                 </FormField>
                 <div className="col-span-2">
                   <Button type="submit" pending={saveProfile.isPending}>Save profile</Button>

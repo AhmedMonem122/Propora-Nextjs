@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/Textarea/Textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { FormField, FormSelect } from '@/components/common/FormField/FormField';
 import { CurrencyInput } from '@/components/common/CurrencyInput/CurrencyInput';
+import { UnitPicker, ResidentPicker } from '@/components/common/EntityPicker/pickers';
 import { toDateInput } from '@/lib/format';
 import { leaseSchema, type LeaseValues } from './schema';
 import type { Lease } from '@/types/api';
@@ -65,11 +66,43 @@ export function LeaseForm({
           <DialogTitle>{initial ? 'Edit lease' : 'New lease'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit((v) => onSubmit(clean(v)))} className="grid grid-cols-1 gap-4 sm:grid-cols-2" noValidate>
-          <FormField label="Unit ID" htmlFor="lf-unit" error={formState.errors.unitId?.message}>
-            <Input id="lf-unit" placeholder="Pick a unit, paste its id" {...register('unitId')} />
+          <FormField label="Unit" htmlFor="lf-unit" error={formState.errors.unitId?.message}>
+            <Controller
+              control={control}
+              name="unitId"
+              render={({ field }) => (
+                <UnitPicker
+                  id="lf-unit"
+                  value={field.value || null}
+                  onChange={(id) => field.onChange(id ?? '')}
+                  error={formState.errors.unitId?.message}
+                  selectedLabel={
+                    initial?.unit
+                      ? `${initial.unit.name}${initial.unit.unitNumber ? ` #${initial.unit.unitNumber}` : ''}`
+                      : undefined
+                  }
+                />
+              )}
+            />
           </FormField>
-          <FormField label="Resident ID" htmlFor="lf-res" error={formState.errors.residentId?.message}>
-            <Input id="lf-res" placeholder="Pick a resident, paste its id" {...register('residentId')} />
+          <FormField label="Resident" htmlFor="lf-res" error={formState.errors.residentId?.message}>
+            <Controller
+              control={control}
+              name="residentId"
+              render={({ field }) => (
+                <ResidentPicker
+                  id="lf-res"
+                  value={field.value || null}
+                  onChange={(id) => field.onChange(id ?? '')}
+                  error={formState.errors.residentId?.message}
+                  selectedLabel={
+                    initial?.resident
+                      ? `${initial.resident.firstName} ${initial.resident.lastName}`.trim() || undefined
+                      : undefined
+                  }
+                />
+              )}
+            />
           </FormField>
           <FormField label="Start date" htmlFor="lf-start" error={formState.errors.startDate?.message}>
             <Input id="lf-start" type="date" {...register('startDate')} />

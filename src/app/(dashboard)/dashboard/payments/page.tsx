@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { z } from 'zod';
 import { toast } from 'sonner';
 import { Download, ExternalLink, Eye, Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -22,10 +23,16 @@ import { formatDateOnly, formatMoney } from '@/lib/format';
 import type { Payment } from '@/types/api';
 import type { ColumnDef } from '@tanstack/react-table';
 
+const editPaymentSchema = z.object({
+  status: z.enum(['PENDING', 'PAID', 'OVERDUE', 'FAILED', 'REFUNDED']).optional(),
+  notes: z.string().max(1000, 'Notes are too long.').optional(),
+});
+
 export default function PaymentsPage(): React.JSX.Element {
   const { can } = useAuth();
   const canUpdate = can('payment:update');
   const canDelete = can('payment:delete');
+  const [editError, setEditError] = useState<string | null>(null);
 
   const [status, setStatus] = useState('');
   const [type, setType] = useState('');
@@ -166,19 +173,32 @@ export default function PaymentsPage(): React.JSX.Element {
           <DialogHeader><DialogTitle>Edit payment</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <FormField label="Status" htmlFor="pe-status">
-              <FormSelect id="pe-status" value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
+              <FormSelect id="pe-status" value={editStatus} onChange={(e) => { setEditStatus(e.target.value); setEditError(null); }}>
                 <option value="">—</option>
                 {['PENDING', 'PAID', 'OVERDUE', 'FAILED', 'REFUNDED'].map((s) => <option key={s} value={s}>{s}</option>)}
               </FormSelect>
             </FormField>
-            <FormField label="Notes" htmlFor="pe-notes">
+            <FormField label="Notes" htmlFor="pe-notes" error={editError ?? undefined}>
               <Input id="pe-notes" defaultValue={editing?.notes ?? ''} onChange={(e) => editing && setEditing({ ...editing, notes: e.target.value })} />
             </FormField>
             <DialogFooter>
               <Button
                 pending={update.isPending}
                 onClick={() => {
-                  if (editing) update.mutate({ id: editing.id, body: { status: editStatus || undefined, notes: editing.notes } }, { onSuccess: () => setEditing(null) });
+                  if (!editing) return;
+                  const parsed = editPaymentSchema.safeParse({
+                    status: editStatus === '' ? undefined : editStatus,
+                    notes: editing.notes ?? undefined,
+                  });
+                  if (!parsed.success) {
+                    setEditError(parsed.error.issues[0]?.message ?? 'Invalid values.');
+                    return;
+                  }
+                  setEditError(null);
+                  update.mutate(
+                    { id: editing.id, body: { status: parsed.data.status, notes: parsed.data.notes } },
+                    { onSuccess: () => setEditing(null) },
+                  );
                 }}
               >
                 Save changes

@@ -13,6 +13,9 @@ import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
 import { StatusBadge } from '@/components/common/StatusBadge/StatusBadge';
+import { BuildingPicker } from '@/components/common/EntityPicker/pickers';
+import { formatMoney } from '@/lib/format';
+import { FormField } from '@/components/common/FormField/FormField';
 import { ErrorState } from '@/components/common/ErrorState/ErrorState';
 import { Button } from '@/components/ui/Button/Button';
 import { Card, CardContent } from '@/components/ui/Card/Card';
@@ -91,7 +94,7 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
   const uCols = useMemo<ColumnDef<Unit>[]>(() => [
     { header: 'Name', accessorKey: 'name', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
     { header: 'Number', accessorKey: 'unitNumber', cell: ({ row }) => row.original.unitNumber ?? '—' },
-    { header: 'Rent', accessorKey: 'rentAmount', cell: ({ row }) => row.original.rentAmount?.toLocaleString('en-EG') ?? '—' },
+    { header: 'Rent', accessorKey: 'rentAmount', cell: ({ row }) => formatMoney(row.original.rentAmount) },
     { header: 'Status', accessorKey: 'status', cell: ({ row }) => <StatusBadge value={row.original.status} /> },
     {
       header: 'Actions', id: 'actions',
@@ -164,7 +167,22 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       </section>
 
       <section className="space-y-3" aria-label="Units">
-        <h2 className="text-lg font-bold">Units in this property</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">Units in this property</h2>
+          {can('unit:create') ? (
+            <Button
+              size="sm"
+              variant="accent"
+              onClick={() => {
+                setUEdit(null);
+                setUBuildingId('');
+                setUOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" /> New unit
+            </Button>
+          ) : null}
+        </div>
         <DataTable columns={uCols} data={unitsQ.data?.rows ?? []} meta={unitsQ.data?.meta} page={1} onPageChange={() => undefined}
           isLoading={unitsQ.isLoading} isFetching={unitsQ.isFetching} error={unitsQ.error} onRetry={() => void unitsQ.refetch()} getRowId={(r) => r.id} />
       </section>
@@ -178,6 +196,18 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
       />
       <UnitForm
         open={uOpen} onOpenChange={setUOpen} initial={uEdit} pending={createU.isPending || updateU.isPending}
+        buildingSlot={
+          !uEdit ? (
+            <FormField label="Building" htmlFor="pu-building">
+              <BuildingPicker
+                id="pu-building"
+                propertyId={id}
+                value={uBuildingId || null}
+                onChange={(bid) => setUBuildingId(bid ?? '')}
+              />
+            </FormField>
+          ) : undefined
+        }
         onSubmit={(body) => {
           if (uEdit) {
             updateU.mutate({ id: uEdit.id, body }, { onSuccess: () => setUOpen(false) });

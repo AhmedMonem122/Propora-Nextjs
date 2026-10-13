@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
 import { Textarea } from '@/components/ui/Textarea/Textarea';
+import { PhoneInput } from '@/components/common/PhoneInput/PhoneInput';
+import { UserPicker } from '@/components/common/EntityPicker/pickers';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { FormField, FormSelect } from '@/components/common/FormField/FormField';
 import { residentSchema, type ResidentValues } from './schema';
@@ -47,7 +49,7 @@ export function ResidentForm({
   pending: boolean;
   onSubmit: (body: Record<string, unknown>) => void;
 }): React.JSX.Element {
-  const { register, handleSubmit, reset, formState } = useForm<ResidentValues>({
+  const { register, handleSubmit, reset, control, formState } = useForm<ResidentValues>({
     resolver: zodResolver(residentSchema),
     defaultValues: toForm(initial),
   });
@@ -72,11 +74,23 @@ export function ResidentForm({
           <FormField label="Email" htmlFor="rf-email" error={formState.errors.email?.message}>
             <Input id="rf-email" type="email" autoComplete="email" {...register('email')} />
           </FormField>
-          <FormField label="Phone" htmlFor="rf-phone">
-            <Input id="rf-phone" type="tel" autoComplete="tel" placeholder="+2010…" {...register('phone')} />
+          <FormField label="Phone" htmlFor="rf-phone" error={formState.errors.phone?.message}>
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field }) => (
+                <PhoneInput
+                  id="rf-phone"
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={formState.errors.phone?.message}
+                />
+              )}
+            />
           </FormField>
-          <FormField label="ID number" htmlFor="rf-idn">
-            <Input id="rf-idn" {...register('idNumber')} />
+          <FormField label="ID number" htmlFor="rf-idn" error={formState.errors.idNumber?.message}>
+            <Input id="rf-idn" inputMode="numeric" placeholder="14-digit national ID" {...register('idNumber')} />
           </FormField>
           <FormField label="Status" htmlFor="rf-status">
             <FormSelect id="rf-status" {...register('status')}>
@@ -86,8 +100,20 @@ export function ResidentForm({
             </FormSelect>
           </FormField>
           {initial ? (
-            <FormField label="Linked user ID" htmlFor="rf-user" className="sm:col-span-2">
-              <Input id="rf-user" placeholder="Portal user account id (same organization)" {...register('userId')} />
+            <FormField label="Linked portal user" htmlFor="rf-user" error={formState.errors.userId?.message} className="sm:col-span-2">
+              <Controller
+                control={control}
+                name="userId"
+                render={({ field }) => (
+                  <UserPicker
+                    id="rf-user"
+                    value={field.value || null}
+                    onChange={(id) => field.onChange(id ?? '')}
+                    error={formState.errors.userId?.message}
+                    placeholder="No portal account linked"
+                  />
+                )}
+              />
             </FormField>
           ) : null}
           <FormField label="Emergency contact" htmlFor="rf-emg" className="sm:col-span-2">

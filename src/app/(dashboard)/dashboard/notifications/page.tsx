@@ -5,8 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Check, CheckCheck } from 'lucide-react';
 import { apiClient, getApiMessage } from '@/lib/api-client';
-import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { PageHeader } from '@/components/common/PageHeader/PageHeader';
+import { usePaginatedList } from '@/hooks/usePaginatedList';import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { Button } from '@/components/ui/Button/Button';
 import { Badge } from '@/components/ui/Badge/Badge';
@@ -18,15 +17,39 @@ export default function NotificationsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const [unreadOnly, setUnreadOnly] = useState(false);
   const extra = useMemo(() => (unreadOnly ? { unreadOnly: true } : {}), [unreadOnly]);
-  const list = usePaginatedList<Notification>('notifications', '/notifications', extra);
+  const list = usePaginatedList<Notification>('notifications', '/notifications', extra, {
+    refetchInterval: 60_000,
+  });
 
   const markRead = useMutation({
     mutationFn: (id: string) => apiClient.patch(`/notifications/${id}/read`, {}),
-    onSuccess: () => {
-      toast.success('Updated successfully.');
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      const previous = queryClient.getQueriesData({ queryKey: ['notifications'] });
+      queryClient.setQueriesData<{ data: Notification[]; meta: unknown }>(
+        { queryKey: ['notifications'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.map((n) => (n.id === id ? { ...n, read: true, readAt: new Date().toISOString() } : n)),
+          };
+        },
+      );
+      return { previous };
+    },
+    onError: (e, _id, context) => {
+      for (const [key, data] of (context?.previous ?? []) as Array<[never, never]>) {
+        queryClient.setQueryData(key, data);
+      }
+      toast.error(getApiMessage(e, 'Operation failed.'));
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
-    onError: (e) => toast.error(getApiMessage(e, 'Operation failed.')),
+    onSuccess: () => {
+      toast.success('Updated successfully.');
+    },
   });
 
   const readAll = useMutation({
@@ -70,6 +93,8 @@ export default function NotificationsPage(): React.JSX.Element {
       <PageHeader
         title="Notifications"
         description="Realtime inbox — updates without refresh."
+        searchValue={list.search}
+        onSearchChange={list.setSearch}
         onReload={list.refetch}
         reloading={list.isFetching}
         actions={

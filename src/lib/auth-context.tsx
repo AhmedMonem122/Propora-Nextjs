@@ -13,7 +13,7 @@ import {
   subscribeLogout,
 } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
-import { hasPermission, isOwnerRole, normalizePermissions, roleNames } from '@/lib/permissions';
+import { hasAnyPermission, hasPermission, isOwnerRole, normalizePermissions, roleNames } from '@/lib/permissions';
 import type { AuthResponse, AuthUser } from '@/types/api';
 
 interface AuthContextValue {
@@ -26,6 +26,7 @@ interface AuthContextValue {
   sessionError: unknown;
   retrySession: () => Promise<void>;
   can: (name: string) => boolean;
+  canAny: (names: string[]) => boolean;
   login: (input: { email: string; password: string }) => Promise<void>;
   register: (input: {
     organizationName: string;
@@ -140,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         await queryClient.invalidateQueries({ queryKey: qk.me });
       },
       can: (name: string) => owner || hasPermission(permissions, name),
+      canAny: (names: string[]) => owner || hasAnyPermission(permissions, names),
       login: async (input) => {
         const res = await apiClient.post<AuthResponse>('/auth/login', input);
         setAccessToken(res.data.accessToken);

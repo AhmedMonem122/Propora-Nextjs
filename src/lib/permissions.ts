@@ -10,7 +10,7 @@ export const PERMISSIONS = {
   maintenance: ['maintenance:create', 'maintenance:read', 'maintenance:update', 'maintenance:delete'],
   document: ['document:create', 'document:read', 'document:update', 'document:delete'],
   notification: ['notification:read'],
-  report: ['report:read'],
+  report: ['report:financial', 'report:occupancy'],
   user: ['user:create', 'user:read', 'user:update', 'user:delete'],
   role: ['role:create', 'role:read', 'role:update', 'role:delete'],
   audit: ['audit:read'],
@@ -63,4 +63,9 @@ export function isOwnerRole(roles: string[]): boolean {
 export function hasPermission(granted: string[] | Set<string>, name: string): boolean {
   if (granted instanceof Set) return granted.has(name);
   return granted.includes(name);
+}
+
+/** True when ANY of the names is granted (e.g. either financial report). */
+export function hasAnyPermission(granted: string[] | Set<string>, names: string[]): boolean {
+  return names.some((name) => hasPermission(granted, name));
 }

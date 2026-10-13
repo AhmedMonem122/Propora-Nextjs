@@ -6,6 +6,14 @@ const API_PREFIX = '/api/v1';
 
 /** In-memory access token. Never persisted (no localStorage/sessionStorage/URL). */
 let accessToken: string | null = null;
+/** Separate platform-admin session (different credential store + endpoints). */
+let platformToken: string | null = null;
+/**
+ * Tenant override for platform admins (X-Organization-Id). Set by the admin
+ * "act as organization" switcher; sent on org API calls only.
+ */
+let orgScope: string | null = null;
+let platformRefreshPromise: Promise<string | null> | null = null;
 /**
  * Single-flight refresh shared by the boot sequence AND the 401 interceptor.
  * The backend rotates refresh tokens: CONCURRENT refresh calls reuse the same
@@ -14,6 +22,7 @@ let accessToken: string | null = null;
  */
 let refreshPromise: Promise<string | null> | null = null;
 let onUnauthorized: (() => void) | null = null;
+let onPlatformUnauthorized: (() => void) | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -23,9 +32,30 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
+export function setPlatformToken(token: string | null): void {
+  platformToken = token;
+}
+
+export function getPlatformToken(): string | null {
+  return platformToken;
+}
+
+export function setOrgScope(organizationId: string | null): void {
+  orgScope = organizationId;
+}
+
+export function getOrgScope(): string | null {
+  return orgScope;
+}
+
 /** Root layout registers this so a failed refresh logs out everywhere. */
 export function setOnUnauthorized(cb: (() => void) | null): void {
   onUnauthorized = cb;
+}
+
+/** Platform layout registers this for platform-session expiry. */
+export function setOnPlatformUnauthorized(cb: (() => void) | null): void {
+  onPlatformUnauthorized = cb;
 }
 
 /** Multi-tab logout without storage: tabs notify each other. */
@@ -81,6 +111,31 @@ export function silentRefresh(): Promise<string | null> {
   return refreshPromise;
 }
 
+/** Platform silent refresh (separate cookie path on the API). */
+export function platformSilentRefresh(): Promise<string | null> {
+  if (!platformRefreshPromise) {
+    platformRefreshPromise = axios
+      .post(
+        `${API_URL}${API_PREFIX}/platform/auth/refresh`,
+        {},
+        { withCredentials: true, timeout: 15000 },
+      )
+      .then((res) => {
+        const token = res.data?.accessToken as string | undefined;
+        setPlatformToken(token ?? null);
+        return token ?? null;
+      })
+      .catch(() => {
+        setPlatformToken(null);
+        return null;
+      })
+      .finally(() => {
+        platformRefreshPromise = null;
+      });
+  }
+  return platformRefreshPromise;
+}
+
 export function createApiClient(): AxiosInstance {
   const client = axios.create({
     baseURL: `${API_URL}${API_PREFIX}`,
@@ -89,7 +144,13 @@ export function createApiClient(): AxiosInstance {
   });
 
   client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-    if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`);
+    const isPlatform = (config.url ?? '').startsWith('/platform');
+    if (isPlatform) {
+      if (platformToken) config.headers.set('Authorization', `Bearer ${platformToken}`);
+    } else {
+      if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`);
+      if (orgScope) config.headers.set('X-Organization-Id', orgScope);
+    }
     // The API 400s on empty-string optionals — strip them centrally so an
     // untouched optional input means "unchanged", never "set to empty".
     // FormData (uploads) is left untouched; nulls are kept as explicit clears.
@@ -114,21 +175,24 @@ export function createApiClient(): AxiosInstance {
     async (error: AxiosError<ApiErrorBody>) => {
       const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
       const status = error.response?.status;
-      const isRefreshCall = original?.url?.includes('/auth/refresh');
+      const url = original?.url ?? '';
+      const isRefreshCall = url.includes('/auth/refresh');
+      const isPlatformCall = url.startsWith('/platform');
       // Only attempt a refresh when we actually sent a (possibly expired)
-      // token. Token-less 401s (logged out) must NOT hit /auth/refresh —
+      // token. Token-less 401s (logged out) must NOT hit refresh —
       // that would be pointless traffic and risks reuse flags.
       const headers = original?.headers as unknown as { Authorization?: unknown } | undefined;
       const sentToken = Boolean(headers?.Authorization);
       if (status === 401 && original && !original._retried && !isRefreshCall && sentToken) {
         original._retried = true;
-        const next = await silentRefresh();
+        const next = isPlatformCall ? await platformSilentRefresh() : await silentRefresh();
         if (next) {
           original.headers.set('Authorization', `Bearer ${next}`);
           return client(original);
         }
       }
-      if (status === 401 && !isRefreshCall) onUnauthorized?.();
+      if (status === 401 && !isRefreshCall && !isPlatformCall) onUnauthorized?.();
+      if (status === 401 && !isRefreshCall && isPlatformCall) onPlatformUnauthorized?.();
       return Promise.reject(error);
     },
   );

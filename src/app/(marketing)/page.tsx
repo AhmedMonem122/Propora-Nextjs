@@ -18,7 +18,7 @@ const ORG_JSONLD = {
   '@type': 'Organization',
   name: 'Propora',
   slogan: 'Better Properties. Happier Communities.',
-  url: process.env.NEXT_PUBLIC_APP_URL ?? 'https://propora.vercel.app',
+  url: process.env.NEXT_PUBLIC_APP_URL ?? 'https://propora-nextjs.vercel.app',
 };
 
 export default function HomePage(): React.JSX.Element {

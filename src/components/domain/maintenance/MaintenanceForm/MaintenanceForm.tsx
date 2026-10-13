@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
 import { Textarea } from '@/components/ui/Textarea/Textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { FormField, FormSelect } from '@/components/common/FormField/FormField';
+import { UnitPicker, ResidentPicker } from '@/components/common/EntityPicker/pickers';
 import { maintenanceSchema, type MaintenanceValues } from './schema';
 import type { MaintenanceRequest } from '@/types/api';
 
@@ -44,7 +45,7 @@ export function MaintenanceForm({
   pending: boolean;
   onSubmit: (body: Record<string, unknown>) => void;
 }): React.JSX.Element {
-  const { register, handleSubmit, reset, formState } = useForm<MaintenanceValues>({
+  const { register, handleSubmit, reset, control, formState } = useForm<MaintenanceValues>({
     resolver: zodResolver(maintenanceSchema),
     defaultValues: toForm(initial),
   });
@@ -64,8 +65,19 @@ export function MaintenanceForm({
             <Input id="mf-title" {...register('title')} />
           </FormField>
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Unit ID" htmlFor="mf-unit" error={formState.errors.unitId?.message}>
-              <Input id="mf-unit" {...register('unitId')} />
+            <FormField label="Unit" htmlFor="mf-unit" error={formState.errors.unitId?.message}>
+              <Controller
+                control={control}
+                name="unitId"
+                render={({ field }) => (
+                  <UnitPicker
+                    id="mf-unit"
+                    value={field.value || null}
+                    onChange={(id) => field.onChange(id ?? '')}
+                    error={formState.errors.unitId?.message}
+                  />
+                )}
+              />
             </FormField>
             <FormField label="Priority" htmlFor="mf-prio">
               <FormSelect id="mf-prio" {...register('priority')}>
@@ -79,6 +91,21 @@ export function MaintenanceForm({
           </div>
           <FormField label="Description" htmlFor="mf-desc">
             <Textarea id="mf-desc" rows={3} {...register('description')} />
+          </FormField>
+          <FormField label="Resident (optional)" htmlFor="mf-res" error={formState.errors.residentId?.message}>
+            <Controller
+              control={control}
+              name="residentId"
+              render={({ field }) => (
+                <ResidentPicker
+                  id="mf-res"
+                  value={field.value || null}
+                  onChange={(id) => field.onChange(id ?? '')}
+                  error={formState.errors.residentId?.message}
+                  placeholder="No resident linked"
+                />
+              )}
+            />
           </FormField>
           <DialogFooter>
             <Button type="submit" pending={pending}>

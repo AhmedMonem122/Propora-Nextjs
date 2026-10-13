@@ -23,7 +23,7 @@ import { formatDateTime } from '@/lib/format';
 import type { Webhook, WebhookDelivery } from '@/types/api';
 
 const schema = z.object({
-  url: z.string().url('Enter a valid HTTPS URL.'),
+  url: z.string().url('Enter a valid URL (https recommended).'),
   events: z.string().optional().or(z.literal('')),
   isActive: z.boolean().optional(),
 });

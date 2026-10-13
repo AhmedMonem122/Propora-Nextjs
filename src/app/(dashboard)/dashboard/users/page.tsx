@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -24,6 +24,8 @@ import { PasswordInput } from '@/components/ui/PasswordInput/PasswordInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select/Select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { FormField } from '@/components/common/FormField/FormField';
+import { PhoneInput } from '@/components/common/PhoneInput/PhoneInput';
+import { phoneField } from '@/schemas/phone';
 import type { OrgUser, Role } from '@/types/api';
 import type { ColumnDef } from '@tanstack/react-table';
 
@@ -32,6 +34,7 @@ const inviteSchema = z.object({
   firstName: z.string().min(1, 'First name is required.'),
   lastName: z.string().min(1, 'Last name is required.'),
   password: z.string().min(8, 'Temporary password must be at least 8 characters.'),
+  phone: phoneField(),
 });
 type InviteValues = z.infer<typeof inviteSchema>;
 
@@ -177,6 +180,21 @@ export default function UsersPage(): React.JSX.Element {
             </div>
             <FormField label="Temporary password" htmlFor="u-pass" error={invite.formState.errors.password?.message}>
               <PasswordInput id="u-pass" autoComplete="new-password" {...invite.register('password')} />
+            </FormField>
+            <FormField label="Phone (optional)" htmlFor="u-phone" error={invite.formState.errors.phone?.message}>
+              <Controller
+                control={invite.control}
+                name="phone"
+                render={({ field }) => (
+                  <PhoneInput
+                    id="u-phone"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={invite.formState.errors.phone?.message}
+                  />
+                )}
+              />
             </FormField>
             <fieldset>
               <legend className="mb-2 text-sm font-medium">Initial roles (optional)</legend>

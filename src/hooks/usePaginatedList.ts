@@ -37,6 +37,7 @@ export function usePaginatedList<T>(
   keyPrefix: string,
   path: string,
   extra?: Record<string, unknown>,
+  opts?: { refetchInterval?: number },
 ): PaginatedList<T> {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -54,6 +55,9 @@ export function usePaginatedList<T>(
       return res.data;
     },
     placeholderData: (prev) => prev,
+    // Polling fallback for when Realtime is unavailable (no Supabase env):
+    // realtime invalidation already makes updates instant otherwise.
+    refetchInterval: opts?.refetchInterval,
   });
 
   return {

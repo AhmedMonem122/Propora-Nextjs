@@ -37,7 +37,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   });
   const leases = useQuery({
     queryKey: ['cmd', 'leases', q],
-    queryFn: async () => (await apiClient.get('/leases', { params: { limit: 4 } })).data?.data as Lease[],
+    queryFn: async () => (await apiClient.get('/leases', { params })).data?.data as Lease[],
     enabled,
   });
 

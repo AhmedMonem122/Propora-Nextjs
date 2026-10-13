@@ -8,7 +8,7 @@ import './globals.css';
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://propora.vercel.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://propora-nextjs.vercel.app';
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),

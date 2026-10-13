@@ -24,7 +24,7 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
-const NAV: Array<{ href: string; label: string; icon: React.ElementType; perm?: string }> = [
+const NAV: Array<{ href: string; label: string; icon: React.ElementType; perm?: string | string[] }> = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/properties', label: 'Properties', icon: Building2, perm: 'property:read' },
   { href: '/dashboard/buildings', label: 'Buildings', icon: Building, perm: 'building:read' },
@@ -36,7 +36,7 @@ const NAV: Array<{ href: string; label: string; icon: React.ElementType; perm?: 
   { href: '/dashboard/maintenance', label: 'Maintenance', icon: Wrench, perm: 'maintenance:read' },
   { href: '/dashboard/documents', label: 'Documents', icon: FolderOpen, perm: 'document:read' },
   { href: '/dashboard/notifications', label: 'Notifications', icon: Bell, perm: 'notification:read' },
-  { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, perm: 'report:read' },
+  { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, perm: ['report:financial', 'report:occupancy'] },
   { href: '/dashboard/users', label: 'Users', icon: UserCog, perm: 'user:read' },
   { href: '/dashboard/roles', label: 'Roles', icon: ShieldCheck, perm: 'role:read' },
   { href: '/dashboard/audit-logs', label: 'Audit log', icon: ScrollText, perm: 'audit:read' },
@@ -47,11 +47,17 @@ const NAV: Array<{ href: string; label: string; icon: React.ElementType; perm?: 
 /** Collapsible dashboard sidebar (Sheet on mobile via parent). */
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }): React.JSX.Element {
   const pathname = usePathname();
-  const { can, isLoading } = useAuth();
+  const { can, canAny, isLoading } = useAuth();
   return (
     <nav aria-label="Dashboard" className="flex h-full flex-col gap-1 overflow-y-auto p-3">
       {NAV.map((item) => {
-        if (!isLoading && item.perm && !can(item.perm)) return null;
+        const allowed =
+          !isLoading && item.perm
+            ? Array.isArray(item.perm)
+              ? canAny(item.perm)
+              : can(item.perm)
+            : true;
+        if (!allowed) return null;
         const active = pathname === item.href;
         const Icon = item.icon;
         return (
