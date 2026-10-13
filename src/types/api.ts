@@ -287,20 +287,34 @@ export interface AuditLog {
 
 /** Reports */
 export interface FinancialReport {
-  totalCollected?: number;
-  totalPending?: number;
-  totalOverdue?: number;
-  byMonth?: Array<{ month: string; collected: number; pending?: number }>;
+  period?: { from?: string; to?: string; currency?: string };
+  expectedMonthlyRent?: number;
+  collectedThisMonth?: number;
+  outstanding?: { amount?: number; count?: number };
+  overdue?: { amount?: number; count?: number };
+  byMonth?: Array<{ month: string; collected: number }>;
+  occupancyRate?: number;
+  units?: { total?: number; occupied?: number };
   currency?: string;
   [key: string]: unknown;
 }
 
 export interface OccupancyReport {
-  totalUnits?: number;
-  occupiedUnits?: number;
-  vacantUnits?: number;
-  occupancyRate?: number;
-  byProperty?: Array<{ propertyId?: string; propertyName?: string; total?: number; occupied?: number; rate?: number }>;
+  totals?: {
+    totalUnits?: number;
+    occupied?: number;
+    vacant?: number;
+    underMaintenance?: number;
+    occupancyRate?: number;
+  };
+  properties?: Array<{
+    propertyId?: string;
+    name?: string;
+    totalUnits?: number;
+    occupied?: number;
+    vacant?: number;
+    occupancyRate?: number;
+  }>;
   [key: string]: unknown;
 }
 

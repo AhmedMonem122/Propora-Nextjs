@@ -30,7 +30,6 @@ export function PhoneInput({
 }: PhoneInputProps): React.JSX.Element {
   return (
     <PhoneInputBase
-      id={id}
       international
       defaultCountry="EG"
       limitMaxLength
@@ -38,10 +37,11 @@ export function PhoneInput({
       onChange={(v) => onChange((v ?? '') as string)}
       onBlur={onBlur}
       disabled={disabled}
-      placeholder={placeholder}
+      placeholder={placeholder ?? '+2010…'}
       aria-invalid={Boolean(error)}
       aria-label={id ? undefined : 'Phone number'}
       numberInputProps={{
+        id,
         className: cn(
           'flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors',
           'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',

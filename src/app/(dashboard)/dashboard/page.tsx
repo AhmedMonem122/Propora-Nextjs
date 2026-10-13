@@ -117,11 +117,14 @@ export default function DashboardOverviewPage(): React.JSX.Element {
     (q) => q.isFetching,
   );
 
-  const currency = (fin.data?.currency as string | undefined) ?? 'EGP';
-  const collected = Number(fin.data?.totalCollected ?? 0);
-  const pending = Number(fin.data?.totalPending ?? 0);
-  const overdue = Number(fin.data?.totalOverdue ?? 0);
-  const rate = Number(occ.data?.occupancyRate ?? 0);
+  const currency = (fin.data?.period?.currency as string | undefined) ?? 'EGP';
+  const collected = Number(fin.data?.collectedThisMonth ?? 0);
+  const pending = Number(fin.data?.outstanding?.amount ?? 0);
+  const pendingCount = Number(fin.data?.outstanding?.count ?? 0);
+  const overdue = Number(fin.data?.overdue?.amount ?? 0);
+  const overdueCount = Number(fin.data?.overdue?.count ?? 0);
+  const rate = Number(fin.data?.occupancyRate ?? 0);
+  const totals = occ.data?.totals;
 
   const finLoading = showFinancial && (fin.isLoading || occ.isLoading);
   const finError = showFinancial ? (fin.error ?? occ.error) : null;
@@ -144,8 +147,8 @@ export default function DashboardOverviewPage(): React.JSX.Element {
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard icon={Banknote} label="Rent collected" value={formatMoney(collected, currency)} tone="text-emerald-600" />
-              <StatCard icon={Clock} label="Pending" value={formatMoney(pending, currency)} tone="text-amber-600" />
-              <StatCard icon={TriangleAlert} label="Overdue" value={formatMoney(overdue, currency)} tone="text-red-600" />
+              <StatCard icon={Clock} label={`Pending (${formatNumber(pendingCount)})`} value={formatMoney(pending, currency)} tone="text-amber-600" />
+              <StatCard icon={TriangleAlert} label={`Overdue (${formatNumber(overdueCount)})`} value={formatMoney(overdue, currency)} tone="text-red-600" />
               <StatCard icon={PieChart} label="Occupancy rate" value={`${formatNumber(Math.round(rate * 100) / 100)}%`} tone="text-sky-600" />
             </div>
             <div className="grid gap-4 lg:grid-cols-5">
@@ -162,12 +165,12 @@ export default function DashboardOverviewPage(): React.JSX.Element {
                 <CardContent className="p-5 pt-5">
                   <CardTitle>Occupancy</CardTitle>
                   <CardDescription>
-                    {formatNumber(occ.data?.occupiedUnits)} of {formatNumber(occ.data?.totalUnits)} units occupied
+                    {formatNumber(totals?.occupied)} of {formatNumber(totals?.totalUnits)} units occupied
                   </CardDescription>
                   <div className="mt-4 h-64">
                     <OccupancyChart
-                      occupied={Number(occ.data?.occupiedUnits ?? 0)}
-                      vacant={Number(occ.data?.vacantUnits ?? (Number(occ.data?.totalUnits ?? 0) - Number(occ.data?.occupiedUnits ?? 0)))}
+                      occupied={Number(totals?.occupied ?? 0)}
+                      vacant={Number(totals?.vacant ?? 0)}
                     />
                   </div>
                 </CardContent>
