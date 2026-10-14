@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -18,6 +18,8 @@ import { Input } from '@/components/ui/Input/Input';
 import { PasswordInput } from '@/components/ui/PasswordInput/PasswordInput';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { FormField } from '@/components/common/FormField/FormField';
+import { EntityPicker } from '@/components/common/EntityPicker/EntityPicker';
+import { PhoneInput } from '@/components/common/PhoneInput/PhoneInput';
 import { phoneField } from '@/schemas/phone';
 import type { ColumnDef } from '@tanstack/react-table';
 
@@ -43,16 +45,65 @@ const createSchema = z.object({
   firstName: z.string().min(1, 'First name is required.'),
   lastName: z.string().min(1, 'Last name is required.'),
   phone: phoneField(),
-  roleId: z.string().optional().or(z.literal('')),
+  roleIds: z.array(z.string()).optional(),
 });
 type CreateValues = z.infer<typeof createSchema>;
+
+function CreateRolePicker({ orgId }: { orgId: string }): React.JSX.Element | null {
+  const { control } = useFormContext<CreateValues>();
+  const rolesQ = useQuery({
+    queryKey: ['platform', 'create-roles', orgId],
+    queryFn: async () => {
+      const res = await apiClient.get('/platform/roles', { params: { organizationId: orgId } });
+      return (res.data ?? []) as OrgRole[];
+    },
+    enabled: Boolean(orgId),
+    staleTime: 60_000,
+  });
+
+  if (!orgId) {
+    return <p className="text-sm text-muted-foreground sm:col-span-2">Select an organization first to choose roles.</p>;
+  }
+  return (
+    <fieldset className="sm:col-span-2">
+      <legend className="mb-2 text-sm font-medium">Roles (optional)</legend>
+      {rolesQ.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading roles…</p>
+      ) : (
+        <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border p-2">
+          {(rolesQ.data ?? []).map((r) => (
+            <Controller
+              key={r.id}
+              control={control}
+              name="roleIds"
+              render={({ field }) => (
+                <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">
+                  <input
+                    type="checkbox"
+                    checked={(field.value ?? []).includes(r.id)}
+                    onChange={(e) => {
+                      const prev = field.value ?? [];
+                      field.onChange(e.target.checked ? [...prev, r.id] : prev.filter((x) => x !== r.id));
+                    }}
+                    className="h-4 w-4 accent-emerald-600"
+                  />
+                  <span className="font-medium">{r.name}</span>
+                </label>
+              )}
+            />
+          ))}
+        </div>
+      )}
+    </fieldset>
+  );
+}
 
 export default function PlatformManagedUsersPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const list = usePaginatedList<ManagedUser>('platform-members', '/platform/managed-users', {});
   const [createOpen, setCreateOpen] = useState(false);
   const [rolesFor, setRolesFor] = useState<ManagedUser | null>(null);
-  const [blocking, setBlocking] = useState<ManagedUser | null>(null);
+  const [statusFor, setStatusFor] = useState<ManagedUser | null>(null);
   const [wiping, setWiping] = useState<ManagedUser | null>(null);
 
   const form = useForm<CreateValues>({ resolver: zodResolver(createSchema) });
@@ -66,7 +117,7 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
         firstName: v.firstName,
         lastName: v.lastName,
         ...(v.phone ? { phone: v.phone } : {}),
-        ...(v.roleId ? { roleIds: [v.roleId] } : {}),
+        ...(v.roleIds?.length ? { roleIds: v.roleIds } : {}),
       }),
     onSuccess: () => {
       toast.success('Created successfully.');
@@ -77,11 +128,12 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
     onError: (e) => toast.error(getApiMessage(e, 'Operation failed.')),
   });
 
-  const block = useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/platform/managed-users/${id}`),
+  const setStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiClient.patch(`/platform/managed-users/${id}`, { status }),
     onSuccess: () => {
-      toast.success('Blocked.');
-      setBlocking(null);
+      toast.success('Updated successfully.');
+      setStatusFor(null);
       void queryClient.invalidateQueries({ queryKey: ['platform-members'] });
     },
     onError: (e) => toast.error(getApiMessage(e, 'Operation failed.')),
@@ -147,7 +199,7 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
               <Button variant="ghost" size="icon" aria-label={`Edit roles for ${u.email}`} onClick={() => setRolesFor(u)}>
                 <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               </Button>
-              <Button variant="ghost" size="icon" aria-label={`Block ${u.email}`} onClick={() => setBlocking(u)}>
+              <Button variant="ghost" size="icon" aria-label={`Change status of ${u.email}`} onClick={() => setStatusFor(u)}>
                 <Pencil className="h-4 w-4" aria-hidden="true" />
               </Button>
               <Button variant="ghost" size="icon" aria-label={`Delete ${u.email} permanently`} onClick={() => setWiping(u)}>
@@ -196,8 +248,36 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
             noValidate
             onSubmit={form.handleSubmit((v) => create.mutate(v))}
           >
-            <FormField label="Organization ID" htmlFor="pm-org" error={form.formState.errors.organizationId?.message} className="sm:col-span-2">
-              <Input id="pm-org" placeholder="Paste the organization id (see Organizations)" {...form.register('organizationId')} />
+            <FormField label="Organization" htmlFor="pm-org" error={form.formState.errors.organizationId?.message} className="sm:col-span-2">
+              <Controller
+                control={form.control}
+                name="organizationId"
+                render={({ field }) => (
+                  <EntityPicker
+                    id="pm-org"
+                    value={field.value || null}
+                    onChange={(id) => {
+                      field.onChange(id ?? '');
+                      form.setValue('roleIds', []);
+                    }}
+                    cacheKey="picker-platform-orgs-create"
+                    dialogTitle="Select organization"
+                    fetchPage={async ({ search, page }) => {
+                      const res = await apiClient.get('/platform/organizations', {
+                        params: { search: search || undefined, page, limit: 20 },
+                      });
+                      const body = res.data as {
+                        data?: Array<Record<string, unknown>>;
+                        meta?: { hasNext?: boolean };
+                      };
+                      return { data: body.data ?? [], meta: body.meta ?? null };
+                    }}
+                    getLabel={(r) => String(r.name ?? String(r.id).slice(0, 8))}
+                    getSub={(r) => (typeof r.slug === 'string' ? r.slug : undefined)}
+                    error={form.formState.errors.organizationId?.message}
+                  />
+                )}
+              />
             </FormField>
             <FormField label="Email" htmlFor="pm-email" error={form.formState.errors.email?.message}>
               <Input id="pm-email" type="email" {...form.register('email')} />
@@ -212,15 +292,21 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
               <Input id="pm-last" {...form.register('lastName')} />
             </FormField>
             <FormField label="Phone (optional)" htmlFor="pm-phone" error={form.formState.errors.phone?.message}>
-              <Input id="pm-phone" type="tel" autoComplete="tel" {...form.register('phone')} />
-            </FormField>
-            <FormField label="Owner role ID (optional)" htmlFor="pm-role" className="sm:col-span-2">
-              <Input
-                id="pm-role"
-                placeholder="Paste ORGANIZATION_OWNER role id to make them owner (see Roles)"
-                {...form.register('roleId')}
+              <Controller
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <PhoneInput
+                    id="pm-phone"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={form.formState.errors.phone?.message}
+                  />
+                )}
               />
             </FormField>
+            <CreateRolePicker orgId={form.watch('organizationId') ?? ''} />
             <DialogFooter className="sm:col-span-2">
               <Button type="submit" pending={create.isPending}>Create member</Button>
             </DialogFooter>
@@ -236,13 +322,14 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
         }}
         pending={saveRoles.isPending}
       />
-      <ConfirmDialog
-        open={Boolean(blocking)}
-        onOpenChange={(v) => { if (!v) setBlocking(null); }}
-        pending={block.isPending}
-        title={blocking ? `Block ${blocking.email}?` : undefined}
-        body="Hard block: history preserved, the account stays out (no auto-reactivation)."
-        onConfirm={() => { if (blocking) block.mutate(blocking.id); }}
+      <StatusDialog
+        key={statusFor?.id ?? 'none'}
+        member={statusFor}
+        onClose={() => setStatusFor(null)}
+        onSave={(status) => {
+          if (statusFor) setStatus.mutate({ id: statusFor.id, status });
+        }}
+        pending={setStatus.isPending}
       />
       <ConfirmDialog
         open={Boolean(wiping)}
@@ -253,6 +340,61 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
         onConfirm={() => { if (wiping) wipe.mutate(wiping.id); }}
       />
     </>
+  );
+}
+
+const STATUSES = [
+  { value: 'ACTIVE', label: 'Active', hint: 'Full access. Clears any self-deletion flag.' },
+  { value: 'INACTIVE', label: 'Deactivated', hint: 'Blocked by admin. History preserved, no auto-reactivation.' },
+  { value: 'SUSPENDED', label: 'Suspended', hint: 'Serious block (abuse). Same effect, stronger signal.' },
+] as const;
+
+function StatusDialog({
+  member,
+  onClose,
+  onSave,
+  pending,
+}: {
+  member: ManagedUser | null;
+  onClose: () => void;
+  onSave: (status: string) => void;
+  pending: boolean;
+}): React.JSX.Element {
+  // Remounted per member via key: initializer state is always fresh.
+  const [status, setStatus] = useState(member?.status ?? 'ACTIVE');
+  if (!member) return <></>;
+  return (
+    <Dialog open={Boolean(member)} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent aria-label={`Status of ${member.email}`}>
+        <DialogHeader><DialogTitle>Status of {member.email}</DialogTitle></DialogHeader>
+        <div className="space-y-2" role="radiogroup" aria-label="Account status">
+          {STATUSES.map((s) => (
+            <label
+              key={s.value}
+              className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm hover:bg-muted"
+            >
+              <input
+                type="radio"
+                name="member-status"
+                value={s.value}
+                checked={status === s.value}
+                onChange={() => setStatus(s.value)}
+                className="mt-0.5 h-4 w-4 accent-emerald-600"
+              />
+              <span>
+                <span className="block font-medium">{s.label}</span>
+                <span className="block text-xs text-muted-foreground">{s.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button pending={pending} onClick={() => onSave(status)}>
+            Save status
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -302,7 +444,7 @@ function RolesDialog({
                       e.target.checked ? [...prev, r.id] : prev.filter((x) => x !== r.id),
                     )
                   }
-                  className="h-4 w-4 accent-violet-600"
+                  className="h-4 w-4 accent-emerald-600"
                 />
                 {r.name}
               </label>

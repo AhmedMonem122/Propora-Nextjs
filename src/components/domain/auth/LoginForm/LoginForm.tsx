@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
-import { applyFormErrors, getApiMessage } from '@/lib/api-client';
+import { apiClient, applyFormErrors, getApiMessage } from '@/lib/api-client';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
 import { PasswordInput } from '@/components/ui/PasswordInput/PasswordInput';
@@ -30,7 +30,24 @@ export function LoginForm(): React.JSX.Element {
     try {
       await login(v);
       toast.success('Logged in successfully.');
-      router.replace(search.get('next') ?? '/dashboard');
+      // Platform-level accounts (no organization) live in /platform, not
+      // the tenant dashboard — same email can exist in both stores, so the
+      // server is the source of truth, not the login form used.
+      const next = search.get('next');
+      if (next && next.startsWith('/platform')) {
+        router.replace(next);
+        return;
+      }
+      try {
+        const me = await apiClient.get('/auth/me');
+        if ((me.data as { organizationId?: string | null } | null)?.organizationId == null) {
+          router.replace('/platform');
+          return;
+        }
+      } catch {
+        /* fall through to the default destination */
+      }
+      router.replace(next ?? '/dashboard');
     } catch (e) {
       toast.error(getApiMessage(e, 'Login failed.'));
       applyFormErrors(e, setError, ['email', 'password']);

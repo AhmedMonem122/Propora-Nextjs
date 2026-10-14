@@ -149,7 +149,7 @@ export default function DashboardOverviewPage(): React.JSX.Element {
               <StatCard icon={Banknote} label="Rent collected" value={formatMoney(collected, currency)} tone="text-emerald-600" />
               <StatCard icon={Clock} label={`Pending (${formatNumber(pendingCount)})`} value={formatMoney(pending, currency)} tone="text-amber-600" />
               <StatCard icon={TriangleAlert} label={`Overdue (${formatNumber(overdueCount)})`} value={formatMoney(overdue, currency)} tone="text-red-600" />
-              <StatCard icon={PieChart} label="Occupancy rate" value={`${formatNumber(Math.round(rate * 100) / 100)}%`} tone="text-sky-600" />
+              <StatCard icon={PieChart} label="Occupancy rate" value={`${formatNumber(Math.round(rate * 100) / 100)}%`} tone="text-emerald-600" />
             </div>
             <div className="grid gap-4 lg:grid-cols-5">
               <Card className="lg:col-span-3">
@@ -185,9 +185,9 @@ export default function DashboardOverviewPage(): React.JSX.Element {
           <h2 className="mb-3 text-lg font-bold">Operations</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <StatCard icon={Wrench} label="Open requests" value={formatNumber(openMaint.data ?? 0)} tone="text-amber-600" />
-            <StatCard icon={Clock} label="Assigned to me" value={formatNumber(myMaint.data ?? 0)} tone="text-sky-600" />
+            <StatCard icon={Clock} label="Assigned to me" value={formatNumber(myMaint.data ?? 0)} tone="text-emerald-600" />
             {canUnits ? (
-              <StatCard icon={DoorOpen} label="Units under maintenance" value={formatNumber(maintUnits.data ?? 0)} tone="text-violet-600" />
+              <StatCard icon={DoorOpen} label="Units under maintenance" value={formatNumber(maintUnits.data ?? 0)} tone="text-emerald-600" />
             ) : null}
           </div>
         </section>
@@ -200,10 +200,10 @@ export default function DashboardOverviewPage(): React.JSX.Element {
             <StatCard icon={Building2} label="Properties" value={formatNumber(propCount.data ?? 0)} tone="text-emerald-600" />
           ) : null}
           {canUnits ? (
-            <StatCard icon={DoorOpen} label="Units" value={formatNumber(unitCount.data ?? 0)} tone="text-sky-600" />
+              <StatCard icon={DoorOpen} label="Units" value={formatNumber(unitCount.data ?? 0)} tone="text-emerald-600" />
           ) : null}
           {canResidents ? (
-            <StatCard icon={Users} label="Residents" value={formatNumber(residentCount.data ?? 0)} tone="text-violet-600" />
+              <StatCard icon={Users} label="Residents" value={formatNumber(residentCount.data ?? 0)} tone="text-emerald-600" />
           ) : null}
           {canLeases ? (
             <StatCard icon={Banknote} label="Active leases" value={formatNumber(leaseCount.data ?? 0)} tone="text-amber-600" />

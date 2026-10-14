@@ -54,9 +54,9 @@ export function OrgScopeBanner(): React.JSX.Element | null {
   return (
     <div
       role="status"
-      className="flex flex-wrap items-center gap-2 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-sm dark:border-violet-800 dark:bg-violet-950"
+      className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm dark:border-emerald-800 dark:bg-emerald-950"
     >
-      <Building2 className="h-4 w-4 text-violet-700 dark:text-violet-300" aria-hidden="true" />
+      <Building2 className="h-4 w-4 text-emerald-700 dark:text-emerald-300" aria-hidden="true" />
       <span>
         Acting as <strong>{orgScopeName ?? orgScope.slice(0, 8)}</strong> — org API calls carry this scope.
       </span>

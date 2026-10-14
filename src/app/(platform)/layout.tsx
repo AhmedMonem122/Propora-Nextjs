@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 import { PlatformAuthProvider, usePlatform } from '@/lib/platform-context';
 import { PlatformSidebar } from '@/components/layout/PlatformSidebar/PlatformSidebar';
 import { OrgScopeBanner } from '@/components/common/OrgScopePicker/OrgScopePicker';
@@ -14,6 +15,9 @@ function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
   const { isLoading, isAuthenticated, admin, logout } = usePlatform();
+  // "Back to app" only makes sense with a live organization session —
+  // otherwise it lands on a dashboard that instantly bounces to login.
+  const { isAuthenticated: hasOrgSession } = useAuth();
   const isLogin = pathname === '/platform/login';
 
   useEffect(() => {
@@ -48,7 +52,7 @@ function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r bg-card lg:block">
         <div className="flex h-16 items-center justify-between border-b px-4">
           <span className="text-lg font-bold">
-            <span className="mr-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-sm text-white">P</span>
+            <span className="mr-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-sm text-white">P</span>
             Platform
           </span>
         </div>
@@ -60,9 +64,11 @@ function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
         <div className="flex h-16 items-center gap-2 border-b bg-card px-4">
           <span className="truncate text-sm text-muted-foreground">{admin?.email ?? ''}</span>
           <span className="ml-auto" />
-          <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
-            Back to app
-          </Link>
+          {hasOrgSession ? (
+            <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
+              Back to app
+            </Link>
+          ) : null}
           <Button
             variant="ghost"
             size="sm"

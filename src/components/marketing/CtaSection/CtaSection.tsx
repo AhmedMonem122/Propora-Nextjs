@@ -17,7 +17,7 @@ export function CtaSection(): React.JSX.Element {
         className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-[#0b3b5c] px-6 py-14 text-center text-white md:py-20"
       >
         <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-emerald-500/25 blur-3xl" aria-hidden="true" />
-        <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-sky-500/20 blur-3xl" aria-hidden="true" />
+        <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl" aria-hidden="true" />
         <h2 className="relative text-balance text-3xl font-black md:text-4xl">Run your portfolio like a pro — from day one.</h2>
         <p className="relative mx-auto mt-3 max-w-xl text-slate-300">
           Create your organization in under a minute. No credit card, no migration headache.

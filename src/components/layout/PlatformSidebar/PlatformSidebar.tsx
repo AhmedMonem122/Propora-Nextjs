@@ -39,7 +39,7 @@ export function PlatformSidebar({ onNavigate }: { onNavigate?: () => void }): Re
             className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
               active
-                ? 'bg-violet-600/10 text-violet-800 dark:bg-violet-500/10 dark:text-violet-300'
+                ? 'bg-emerald-600/10 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >

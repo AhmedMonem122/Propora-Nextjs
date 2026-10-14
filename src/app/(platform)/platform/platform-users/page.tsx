@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/Input/Input';
 import { PasswordInput } from '@/components/ui/PasswordInput/PasswordInput';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { FormField, FormSelect } from '@/components/common/FormField/FormField';
+import { PhoneInput } from '@/components/common/PhoneInput/PhoneInput';
 import { phoneField } from '@/schemas/phone';
 import type { ColumnDef } from '@tanstack/react-table';
 
@@ -165,7 +166,19 @@ export default function PlatformUsersPage(): React.JSX.Element {
               <Input id="pu-last" {...form.register('lastName')} />
             </FormField>
             <FormField label="Phone (optional)" htmlFor="pu-phone" error={form.formState.errors.phone?.message} className="sm:col-span-2">
-              <Input id="pu-phone" type="tel" autoComplete="tel" {...form.register('phone')} />
+              <Controller
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <PhoneInput
+                    id="pu-phone"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={form.formState.errors.phone?.message}
+                  />
+                )}
+              />
             </FormField>
             <DialogFooter className="sm:col-span-2">
               <Button type="submit" pending={create.isPending}>Create</Button>
@@ -222,7 +235,7 @@ function EditDialog({
             <Input id="pe-last" value={lastName} onChange={(e) => setLastName(e.target.value)} />
           </FormField>
           <FormField label="Phone" htmlFor="pe-phone">
-            <Input id="pe-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <PhoneInput id="pe-phone" value={phone} onChange={setPhone} />
           </FormField>
           <FormField label="Status" htmlFor="pe-status">
             <FormSelect id="pe-status" value={status} onChange={(e) => setStatus(e.target.value)}>

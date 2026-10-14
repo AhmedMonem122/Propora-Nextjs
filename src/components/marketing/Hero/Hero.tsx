@@ -21,7 +21,7 @@ export function Hero(): React.JSX.Element {
         className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-emerald-500/25 blur-3xl"
         aria-hidden="true"
       />
-      <div className="absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-sky-500/20 blur-3xl" aria-hidden="true" />
+      <div className="absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-emerald-500/20 blur-3xl" aria-hidden="true" />
       <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-20 md:grid-cols-2 md:py-28">
         <motion.div {...anim} variants={fadeUp} transition={{ duration: 0.6 }}>
           <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-emerald-300">

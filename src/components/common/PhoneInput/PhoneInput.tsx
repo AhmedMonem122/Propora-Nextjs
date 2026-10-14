@@ -49,10 +49,13 @@ export function PhoneInput({
           error && 'border-red-500 focus-visible:ring-red-500',
         ),
       }}
+      // Flag + calling code stay visible (the whole point of the picker);
+      // only the default oversized icon margins are tamed.
       className={cn(
-        '[&_.PhoneInputCountry]:mr-0 [&_.PhoneInputCountrySelect]:h-9 [&_.PhoneInputCountrySelect]:rounded-lg',
+        '[&_.PhoneInputCountry]:mr-1 [&_.PhoneInputCountrySelect]:h-9 [&_.PhoneInputCountrySelect]:rounded-lg',
         '[&_.PhoneInputCountrySelect]:border [&_.PhoneInputCountrySelect]:border-input [&_.PhoneInputCountrySelect]:bg-transparent',
-        '[&_.PhoneInputCountryIcon]:hidden',
+        '[&_.PhoneInputCountrySelect]:pr-1 [&_.PhoneInputCountryIcon]:h-4 [&_.PhoneInputCountryIcon]:w-6',
+        '[&_.PhoneInputCountryIcon--border]:rounded-sm [&_.PhoneInputCountryIcon--border]:shadow-sm',
       )}
     />
   );

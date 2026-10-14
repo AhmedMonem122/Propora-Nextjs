@@ -51,7 +51,7 @@ export default function PlatformOverviewPage(): React.JSX.Element {
           {CARDS.map(({ key, label, icon: Icon }) => (
             <Card key={key}>
               <CardContent className="flex items-center gap-3 p-5">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-600/10 text-violet-700 dark:text-violet-300">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600/10 text-emerald-700 dark:text-emerald-300">
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <span>
