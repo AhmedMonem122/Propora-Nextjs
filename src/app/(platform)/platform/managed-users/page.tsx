@@ -217,7 +217,7 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
     <>
       <PageHeader
         title="Members"
-        description="Every account on the platform. Block, or delete forever."
+        description="Every account on the platform. Manage roles and status, or delete forever."
         searchValue={list.search}
         onSearchChange={list.setSearch}
         onReload={list.refetch}
