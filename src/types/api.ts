@@ -54,19 +54,28 @@ export interface AuthUser {
 
 export interface AuthResponse extends AuthTokens {
   user: AuthUser;
+  /** Verified role this session signed in as (server-checked). */
+  loginRole?: string;
+  /** Where the client should land: /dashboard or /platform. */
+  target?: string;
 }
 
 export interface LoginDto {
   email: string;
   password: string;
+  /** Intended role — ADMIN opens the platform session, org roles are verified. */
+  role?: string;
 }
 
 export interface RegisterDto {
-  organizationName: string;
+  organizationName?: string;
   firstName: string;
   lastName: string;
   email: string;
   password: string;
+  /** Requested role (ADMIN is rejected by the API). Non-OWNER needs inviteCode. */
+  role?: string;
+  inviteCode?: string;
 }
 
 /** Properties */

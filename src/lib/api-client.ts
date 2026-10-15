@@ -10,9 +10,20 @@ let accessToken: string | null = null;
 let platformToken: string | null = null;
 /**
  * Tenant override for platform admins (X-Organization-Id). Set by the admin
- * "act as organization" switcher; sent on org API calls only.
+ * "act as organization" switcher; sent on org API calls only. Persisted so a
+ * reload mid-investigation keeps the scope (cleared on logout).
  */
-let orgScope: string | null = null;
+const ORG_SCOPE_STORAGE_KEY = 'propora.orgScope';
+let orgScope: string | null = (() => {
+  try {
+    if (typeof window !== 'undefined') {
+      return window.localStorage.getItem(ORG_SCOPE_STORAGE_KEY);
+    }
+  } catch {
+    /* storage unavailable — scope starts empty */
+  }
+  return null;
+})();
 let platformRefreshPromise: Promise<string | null> | null = null;
 /**
  * Single-flight refresh shared by the boot sequence AND the 401 interceptor.
@@ -42,6 +53,14 @@ export function getPlatformToken(): string | null {
 
 export function setOrgScope(organizationId: string | null): void {
   orgScope = organizationId;
+  try {
+    if (typeof window !== 'undefined') {
+      if (organizationId) window.localStorage.setItem(ORG_SCOPE_STORAGE_KEY, organizationId);
+      else window.localStorage.removeItem(ORG_SCOPE_STORAGE_KEY);
+    }
+  } catch {
+    /* storage unavailable — in-memory scope still applies */
+  }
 }
 
 export function getOrgScope(): string | null {

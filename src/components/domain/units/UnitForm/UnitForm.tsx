@@ -63,11 +63,19 @@ export function UnitForm({
     defaultValues: toForm(initial),
   });
 
+  // Picker-only fetch on its own key, gated to the open dialog: it must never
+  // share the catalog key (shape collision crashed /units before). The
+  // Array guard is belt-and-braces — a shape regression degrades to an
+  // empty picker instead of a render throw.
   const typesQuery = useQuery({
-    queryKey: qk.unitTypes,
+    queryKey: qk.unitTypeOptions,
     queryFn: async () => normalizeList<UnitType>((await apiClient.get('/unit-types')).data).rows,
     staleTime: 5 * 60_000,
+    enabled: open,
   });
+  const typeOptions: UnitType[] = Array.isArray(typesQuery.data)
+    ? typesQuery.data
+    : (typesQuery.data as unknown as { rows?: UnitType[] } | undefined)?.rows ?? [];
 
   useEffect(() => {
     if (open) reset(toForm(initial));
@@ -90,7 +98,7 @@ export function UnitForm({
           <FormField label="Unit type" htmlFor="uf-utype">
             <FormSelect id="uf-utype" {...register('unitTypeId')}>
               <option value="">—</option>
-              {(typesQuery.data ?? []).map((t) => (
+              {(typeOptions).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>

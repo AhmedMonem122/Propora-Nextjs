@@ -26,43 +26,43 @@
 }
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0b1f3a;
+  --background: #f6faf8;
+  --foreground: #052e22;
   --card: #ffffff;
-  --card-foreground: #0b1f3a;
+  --card-foreground: #052e22;
   --primary: #047857;
   --primary-foreground: #ffffff;
   --secondary: #ecfdf5;
   --secondary-foreground: #065f46;
-  --muted: #eef2f7;
-  --muted-foreground: #5b6b82;
+  --muted: #e9f2ec;
+  --muted-foreground: #4f665c;
   --accent: #10b981;
   --accent-foreground: #ffffff;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
+  --border: #d8e5dd;
+  --input: #d8e5dd;
   --ring: #10b981;
   --radius: 0.75rem;
 }
 
 .dark {
-  --background: #060d1a;
-  --foreground: #e8eef7;
-  --card: #0c1628;
-  --card-foreground: #e8eef7;
+  --background: #03110c;
+  --foreground: #e9f5ee;
+  --card: #071c14;
+  --card-foreground: #e9f5ee;
   --primary: #34d399;
   --primary-foreground: #06281c;
-  --secondary: #0e2233;
+  --secondary: #0a2a1e;
   --secondary-foreground: #a7f3d0;
-  --muted: #101d33;
-  --muted-foreground: #93a4bd;
+  --muted: #0a2318;
+  --muted-foreground: #9db8ab;
   --accent: #10b981;
   --accent-foreground: #06281c;
   --destructive: #f87171;
   --destructive-foreground: #2a0a0a;
-  --border: #1b2c47;
-  --input: #1b2c47;
+  --border: #143325;
+  --input: #143325;
   --ring: #10b981;
 }
 
@@ -72,6 +72,10 @@
   }
   html {
     scroll-behavior: smooth;
+  }
+  ::selection {
+    background-color: #a7f3d0;
+    color: #052e22;
   }
   body {
     background-color: var(--background);
@@ -86,10 +90,10 @@
   .text-balance {
     text-wrap: balance;
   }
-  .bg-grid-navy {
+  .bg-grid-emerald {
     background-image:
-      linear-gradient(to right, rgb(148 163 184 / 0.12) 1px, transparent 1px),
-      linear-gradient(to bottom, rgb(148 163 184 / 0.12) 1px, transparent 1px);
+      linear-gradient(to right, rgb(52 211 153 / 0.12) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(52 211 153 / 0.12) 1px, transparent 1px);
     background-size: 44px 44px;
   }
 }

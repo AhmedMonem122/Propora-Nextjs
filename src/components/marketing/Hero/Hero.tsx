@@ -15,8 +15,8 @@ export function Hero(): React.JSX.Element {
   const reduce = useReducedMotion();
   const anim = reduce ? {} : { initial: 'hidden', whileInView: 'show', viewport: { once: true } };
   return (
-    <section className="relative overflow-hidden bg-[#0b1f3a] text-white">
-      <div className="bg-grid-navy absolute inset-0" aria-hidden="true" />
+    <section className="relative overflow-hidden bg-[#052e22] text-white">
+      <div className="bg-grid-emerald absolute inset-0" aria-hidden="true" />
       <div
         className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-emerald-500/25 blur-3xl"
         aria-hidden="true"
@@ -31,7 +31,7 @@ export function Hero(): React.JSX.Element {
           <h1 className="mt-5 text-balance text-4xl font-black leading-tight md:text-6xl">
             Better Properties. <span className="text-emerald-400">Happier Communities.</span>
           </h1>
-          <p className="mt-5 max-w-lg text-slate-300">
+          <p className="mt-5 max-w-lg text-emerald-100">
             Propora unifies properties, leases, payments, maintenance and documents in one fast,
             multitenant dashboard — so managers spend time on people, not paperwork.
           </p>
@@ -60,9 +60,9 @@ export function Hero(): React.JSX.Element {
             <Card key={s.k} className="border-white/10 bg-white/5 text-white backdrop-blur">
               <CardContent className="flex items-center justify-between p-4 pt-4">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400">{s.k}</p>
+                  <p className="text-xs uppercase tracking-wide text-emerald-200">{s.k}</p>
                   <p className="text-2xl font-black text-emerald-400">{s.v}</p>
-                  <p className="text-xs text-slate-400">{s.d}</p>
+                  <p className="text-xs text-emerald-200">{s.d}</p>
                 </div>
               </CardContent>
             </Card>

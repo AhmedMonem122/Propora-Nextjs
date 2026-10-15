@@ -28,10 +28,17 @@ type Values = z.infer<typeof schema>;
 
 export default function UnitTypesPage(): React.JSX.Element {
   const { can } = useAuth();
+  // Catalog shape is {rows,meta} on the shared key — pickers use
+  // `unitTypeOptions` instead, so this data can never be shape-poisoned.
+  // The rows guard below degrades a poisoned cache to an empty table that a
+  // Reload heals, instead of a stuck blank page.
   const listQ = useQuery({
     queryKey: qk.unitTypes,
     queryFn: async () => normalizeList<UnitType>((await apiClient.get('/unit-types')).data),
   });
+  const rows: UnitType[] = Array.isArray(listQ.data)
+    ? (listQ.data as unknown as UnitType[])
+    : (listQ.data?.rows ?? []);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<UnitType | null>(null);
@@ -116,7 +123,7 @@ export default function UnitTypesPage(): React.JSX.Element {
             },
           },
         ]}
-        data={listQ.data?.rows ?? []}
+        data={rows}
         meta={listQ.data?.meta}
         page={1}
         onPageChange={() => undefined}

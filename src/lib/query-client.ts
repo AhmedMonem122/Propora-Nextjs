@@ -28,6 +28,10 @@ export const qk = {
   units: (params?: unknown) => ['units', params ?? 'all'] as const,
   unit: (id: string) => ['units', id] as const,
   unitTypes: ['unit-types'] as const,
+  // Picker-shaped copy of the catalog (bare rows array). NEVER reuse
+  // `unitTypes` for option lists: the catalog page caches {rows,meta} and a
+  // shape collision here once crashed the whole units page.
+  unitTypeOptions: ['unit-types', 'options'] as const,
   residents: (params?: unknown) => ['residents', params ?? 'all'] as const,
   resident: (id: string) => ['residents', id] as const,
   leases: (params?: unknown) => ['leases', params ?? 'all'] as const,

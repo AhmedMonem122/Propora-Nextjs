@@ -1,10 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Pencil, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Pencil, Trash2 } from 'lucide-react';
 import { apiClient, getApiMessage } from '@/lib/api-client';
+import { usePlatform } from '@/lib/platform-context';
+import { ORGANIZATION_PLANS } from '@/lib/plans';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useDeleteEntity } from '@/hooks/useEntityMutations';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
@@ -28,6 +31,8 @@ interface PlatformOrg {
 }
 
 export default function PlatformOrganizationsPage(): React.JSX.Element {
+  const router = useRouter();
+  const { setScope } = usePlatform();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState('');
   const extra = useMemo(() => ({ ...(status ? { status } : {}) }), [status]);
@@ -73,8 +78,7 @@ export default function PlatformOrganizationsPage(): React.JSX.Element {
   };
 
   const columns = useMemo<ColumnDef<PlatformOrg>[]>(
-    () => [
-      {
+    () => [      {
         header: 'Organization',
         accessorKey: 'name',
         cell: ({ row }) => (
@@ -97,6 +101,18 @@ export default function PlatformOrganizationsPage(): React.JSX.Element {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={`Open ${o.name} dashboard (act as this organization)`}
+                title="Open dashboard as this organization"
+                onClick={() => {
+                  setScope(o.id, o.name);
+                  router.push('/dashboard');
+                }}
+              >
+                <LayoutDashboard className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 aria-label={`Manage ${o.name}`}
                 onClick={() => {
                   setEditing(o);
@@ -114,7 +130,7 @@ export default function PlatformOrganizationsPage(): React.JSX.Element {
         },
       },
     ],
-    [],
+    [router, setScope],
   );
 
   return (
@@ -163,12 +179,14 @@ export default function PlatformOrganizationsPage(): React.JSX.Element {
               </FormSelect>
             </FormField>
             <FormField label="Plan" htmlFor="po-plan">
-              <Input
-                id="po-plan"
-                value={editPlan}
-                onChange={(e) => setEditPlan(e.target.value)}
-                placeholder="FREE / PRO… (empty = unchanged)"
-              />
+              <FormSelect id="po-plan" value={editPlan} onChange={(e) => setEditPlan(e.target.value)}>
+                <option value="">— (unchanged)</option>
+                {ORGANIZATION_PLANS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </FormSelect>
             </FormField>
             <DialogFooter>
               <Button
@@ -177,7 +195,7 @@ export default function PlatformOrganizationsPage(): React.JSX.Element {
                   if (!editing) return;
                   const body: Record<string, unknown> = {};
                   if (editStatus) body.status = editStatus;
-                  if (editPlan.trim() !== '') body.plan = editPlan.trim();
+                  if (editPlan) body.plan = editPlan;
                   save.mutate({ id: editing.id, body });
                 }}
               >

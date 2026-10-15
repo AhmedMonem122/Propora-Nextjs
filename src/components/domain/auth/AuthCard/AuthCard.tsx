@@ -12,7 +12,7 @@ export function AuthCard({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0b1f3a] px-4 py-10">
+    <main className="flex min-h-screen items-center justify-center bg-[#052e22] px-4 py-10">
       <div className="w-full max-w-md">
         <Link href="/" className="mb-6 flex items-center justify-center gap-2 font-bold text-white" aria-label="Propora home">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500 text-emerald-950">

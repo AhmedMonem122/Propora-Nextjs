@@ -10,7 +10,7 @@ import { Sidebar } from '@/components/layout/Sidebar/Sidebar';
 import { Topbar } from '@/components/layout/Topbar/Topbar';
 import { CommandPalette } from '@/components/common/CommandPalette/CommandPalette';
 import { RealtimeProvider } from '@/components/Realtime/RealtimeProvider';
-import { OrgScopePicker } from '@/components/common/OrgScopePicker/OrgScopePicker';
+import { OrgScopeBanner, OrgScopePicker } from '@/components/common/OrgScopePicker/OrgScopePicker';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { Button } from '@/components/ui/Button/Button';
@@ -135,7 +135,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {platformMode && !platform.orgScope ? (
                 <ScopeGate />
               ) : (
-                children
+                <>
+                  {platformMode ? <OrgScopeBanner /> : null}
+                  {children}
+                </>
               )}
             </main>
           </div>

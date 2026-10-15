@@ -16,6 +16,7 @@ import {
 } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
 import { hasAnyPermission, hasPermission, isOwnerRole, normalizePermissions, roleNames } from '@/lib/permissions';
+import { adoptPlatformSession } from '@/lib/platform-context';
 import { setSessionKind } from '@/lib/session-flag';
 import type { AuthResponse, AuthUser } from '@/types/api';
 
@@ -32,13 +33,15 @@ interface AuthContextValue {
   canAny: (names: string[]) => boolean;
   /** True when acting as a platform admin (possibly scoped to an org). */
   isPlatformMode?: boolean;
-  login: (input: { email: string; password: string }) => Promise<void>;
+  login: (input: { email: string; password: string; role?: string }) => Promise<string>;
   register: (input: {
-    organizationName: string;
+    organizationName?: string;
     firstName: string;
     lastName: string;
     email: string;
     password: string;
+    role?: string;
+    inviteCode?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -162,11 +165,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       canAny: (names: string[]) => owner || hasAnyPermission(permissions, names),
       login: async (input) => {
         const res = await apiClient.post<AuthResponse>('/auth/login', input);
+        // Unified login: ADMIN lands in the platform session (the server
+        // verified the account), everyone else in the org session.
+        if (res.data.target === '/platform') {
+          const admin = res.data.user as unknown as {
+            id: string;
+            email: string;
+            firstName?: string | null;
+            lastName?: string | null;
+          };
+          setAccessToken(null);
+          setLoggedOut(true);
+          queryClient.clear();
+          adoptPlatformSession(res.data.accessToken, {
+            id: admin.id,
+            email: admin.email,
+            firstName: admin.firstName ?? null,
+            lastName: admin.lastName ?? null,
+          });
+          setSessionKind('org', false);
+          return res.data.target;
+        }
         setAccessToken(res.data.accessToken);
         setSessionKind('org', true);
         setLoggedOut(false);
         queryClient.setQueryData(qk.me, toUser(res.data.user));
         await queryClient.invalidateQueries({ queryKey: qk.me });
+        return res.data.target ?? '/dashboard';
       },
       register: async (input) => {
         // Register sends the welcome email synchronously (~25s+) — allow it time.

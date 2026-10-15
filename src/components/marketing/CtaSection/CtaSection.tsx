@@ -19,7 +19,7 @@ export function CtaSection(): React.JSX.Element {
         <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-emerald-500/25 blur-3xl" aria-hidden="true" />
         <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl" aria-hidden="true" />
         <h2 className="relative text-balance text-3xl font-black md:text-4xl">Run your portfolio like a pro — from day one.</h2>
-        <p className="relative mx-auto mt-3 max-w-xl text-slate-300">
+        <p className="relative mx-auto mt-3 max-w-xl text-emerald-100">
           Create your organization in under a minute. No credit card, no migration headache.
         </p>
         <div className="relative mt-8 flex justify-center gap-3">

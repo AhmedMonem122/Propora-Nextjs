@@ -3,7 +3,7 @@ import { Building2 } from 'lucide-react';
 
 export function SiteFooter(): React.JSX.Element {
   return (
-    <footer className="border-t bg-[#0b1f3a] text-slate-300 dark:bg-black/40">
+    <footer className="border-t bg-[#052e22] text-emerald-100 dark:bg-black/40">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-4">
         <div>
           <p className="flex items-center gap-2 font-bold text-white">
@@ -12,7 +12,7 @@ export function SiteFooter(): React.JSX.Element {
             </span>
             Propora
           </p>
-          <p className="mt-3 text-sm text-slate-400">Better Properties. Happier Communities.</p>
+          <p className="mt-3 text-sm text-emerald-200">Better Properties. Happier Communities.</p>
         </div>
         <nav aria-label="Product">
           <p className="text-sm font-semibold text-white">Product</p>
@@ -38,7 +38,7 @@ export function SiteFooter(): React.JSX.Element {
         </nav>
       </div>
       <div className="border-t border-white/10">
-        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-slate-500">
+        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-emerald-200/70">
           © {new Date().getFullYear()} Propora. All rights reserved.
         </p>
       </div>

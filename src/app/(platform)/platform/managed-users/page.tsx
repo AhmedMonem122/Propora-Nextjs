@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm, Controller, useFormContext } from 'react-hook-form';
+import { useForm, Controller, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -61,6 +61,8 @@ function CreateRolePicker({ orgId }: { orgId: string }): React.JSX.Element | nul
     staleTime: 60_000,
   });
 
+  const roles: OrgRole[] = Array.isArray(rolesQ.data) ? rolesQ.data : [];
+
   if (!orgId) {
     return <p className="text-sm text-muted-foreground sm:col-span-2">Select an organization first to choose roles.</p>;
   }
@@ -71,7 +73,7 @@ function CreateRolePicker({ orgId }: { orgId: string }): React.JSX.Element | nul
         <p className="text-sm text-muted-foreground">Loading roles…</p>
       ) : (
         <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border p-2">
-          {(rolesQ.data ?? []).map((r) => (
+          {roles.map((r) => (
             <Controller
               key={r.id}
               control={control}
@@ -106,7 +108,12 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
   const [statusFor, setStatusFor] = useState<ManagedUser | null>(null);
   const [wiping, setWiping] = useState<ManagedUser | null>(null);
 
-  const form = useForm<CreateValues>({ resolver: zodResolver(createSchema) });
+  // CreateRolePicker reads the form via context, so the dialog form must be
+  // wrapped in FormProvider — without it, opening "New member" crashes.
+  const form = useForm<CreateValues>({
+    resolver: zodResolver(createSchema),
+    defaultValues: { organizationId: '', roleIds: [] },
+  });
 
   const create = useMutation({
     mutationFn: (v: CreateValues) =>
@@ -243,6 +250,7 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent aria-label="Create member">
           <DialogHeader><DialogTitle>New member (any organization)</DialogTitle></DialogHeader>
+          <FormProvider {...form}>
           <form
             className="grid grid-cols-1 gap-4 sm:grid-cols-2"
             noValidate
@@ -311,6 +319,7 @@ export default function PlatformManagedUsersPage(): React.JSX.Element {
               <Button type="submit" pending={create.isPending}>Create member</Button>
             </DialogFooter>
           </form>
+          </FormProvider>
         </DialogContent>
       </Dialog>
       <RolesDialog

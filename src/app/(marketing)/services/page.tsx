@@ -22,11 +22,11 @@ const SERVICES = [
 export default function ServicesPage(): React.JSX.Element {
   return (
     <>
-      <section className="bg-[#0b1f3a] text-white">
+      <section className="bg-[#052e22] text-white">
         <div className="mx-auto max-w-6xl px-4 py-16 md:py-20">
           <p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">Services</p>
           <h1 className="mt-2 max-w-2xl text-balance text-4xl font-black md:text-5xl">One platform for the entire tenant lifecycle.</h1>
-          <p className="mt-4 max-w-xl text-slate-300">From listing a unit to collecting rent to fixing the AC — Propora covers it end to end.</p>
+          <p className="mt-4 max-w-xl text-emerald-100">From listing a unit to collecting rent to fixing the AC — Propora covers it end to end.</p>
         </div>
       </section>
       <section className="mx-auto max-w-6xl px-4 py-14">
