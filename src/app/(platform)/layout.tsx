@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { PlatformAuthProvider, usePlatform } from '@/lib/platform-context';
+import { usePlatform } from '@/lib/platform-context';
 import { PlatformSidebar } from '@/components/layout/PlatformSidebar/PlatformSidebar';
 import { OrgScopeBanner } from '@/components/common/OrgScopePicker/OrgScopePicker';
 import { Button } from '@/components/ui/Button/Button';
@@ -88,9 +88,8 @@ function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
 }
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }): React.JSX.Element {
-  return (
-    <PlatformAuthProvider>
-      <Shell>{children}</Shell>
-    </PlatformAuthProvider>
-  );
+  // Single PlatformAuthProvider lives in root Providers — a nested one here
+  // used to fork admin/scope state, so "act as org" evaporated the moment you
+  // left /platform/* (dashboard ScopeGate with a scope that was just set).
+  return <Shell>{children}</Shell>;
 }
