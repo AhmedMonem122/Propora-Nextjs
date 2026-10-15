@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/Button/Button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/Dialog/Dialog';
+import { SiteAuthLinks } from './SiteAuthLinks';
 
 const LINKS = [
   { href: '/', label: 'Home' },
@@ -40,12 +41,7 @@ export function MobileNav(): React.JSX.Element {
             ))}
           </nav>
           <div className="mt-auto flex flex-col gap-2 border-t p-4">
-            <Button variant="outline" asChild onClick={() => setOpen(false)}>
-              <Link href="/login">Log in</Link>
-            </Button>
-            <Button variant="accent" asChild onClick={() => setOpen(false)}>
-              <Link href="/register">Get started</Link>
-            </Button>
+            <SiteAuthLinks mobile onNavigate={() => setOpen(false)} />
           </div>
         </DialogContent>
       </Dialog>

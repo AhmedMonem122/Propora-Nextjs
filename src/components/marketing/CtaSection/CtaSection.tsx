@@ -14,7 +14,7 @@ export function CtaSection(): React.JSX.Element {
         whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5 }}
-        className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-[#0b3b5c] px-6 py-14 text-center text-white md:py-20"
+        className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-emerald-900 px-6 py-14 text-center text-white md:py-20"
       >
         <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-emerald-500/25 blur-3xl" aria-hidden="true" />
         <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl" aria-hidden="true" />

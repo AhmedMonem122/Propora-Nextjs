@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image', title: 'Propora', description: 'Better Properties. Happier Communities.' },
 };
 
-export const viewport: Viewport = { themeColor: '#0b3b5c' };
+export const viewport: Viewport = { themeColor: '#047857' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }): React.JSX.Element {
   // Vercel-only: /_vercel/* scripts 404 on local servers and pollute the console.

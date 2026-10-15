@@ -2,14 +2,17 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   apiClient,
   getPlatformToken,
   platformSilentRefresh,
+  setAccessToken,
   setOnPlatformUnauthorized,
   setOrgScope,
   setPlatformToken,
 } from '@/lib/api-client';
+import { setSessionKind } from '@/lib/session-flag';
 
 interface PlatformAdmin {
   id: string;
@@ -34,6 +37,7 @@ const PlatformContext = createContext<PlatformContextValue | null>(null);
 
 export function PlatformAuthProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [admin, setAdmin] = useState<PlatformAdmin | null>(null);
   const [booted, setBooted] = useState(false);
   const [scope, setScopeState] = useState<{ id: string | null; name: string | null }>({
@@ -47,15 +51,25 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const doLogout = useCallback(async () => {
+    // Mirror of the org logout: end both sessions, clear cached org data.
     setPlatformToken(null);
+    setAccessToken(null);
     setScope(null);
+    setSessionKind('platform', false);
+    setSessionKind('org', false);
     setAdmin(null);
+    queryClient.clear();
     try {
       await apiClient.post('/platform/auth/logout', {});
     } catch {
       /* already logged out server-side */
     }
-  }, [setScope]);
+    try {
+      await apiClient.post('/auth/logout', {});
+    } catch {
+      /* no org session */
+    }
+  }, [setScope, queryClient]);
 
   useEffect(() => {
     let alive = true;
@@ -100,6 +114,7 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
         const res = await apiClient.post('/platform/auth/login', input);
         setPlatformToken(res.data?.accessToken ?? null);
         setAdmin((res.data?.admin ?? null) as PlatformAdmin | null);
+        setSessionKind('platform', true);
       },
       logout: async () => {
         await doLogout();

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Building2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/common/ThemeToggle/ThemeToggle';
-import { Button } from '@/components/ui/Button/Button';
+import { SiteAuthLinks } from './SiteAuthLinks';
 import { MobileNav } from './MobileNav';
 
 const LINKS = [
@@ -20,7 +20,7 @@ export function SiteHeader(): React.JSX.Element {
       </a>
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4" aria-label="Main">
         <Link href="/" className="flex items-center gap-2 font-bold text-lg" aria-label="Propora home">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0b3b5c] text-emerald-400 dark:bg-emerald-500 dark:text-emerald-950">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-white dark:bg-emerald-500 dark:text-emerald-950">
             <Building2 className="h-5 w-5" aria-hidden="true" />
           </span>
           Propora
@@ -36,12 +36,7 @@ export function SiteHeader(): React.JSX.Element {
         </ul>
         <div className="flex items-center gap-1 sm:gap-2">
           <ThemeToggle />
-          <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-            <Link href="/login">Log in</Link>
-          </Button>
-          <Button variant="accent" size="sm" asChild className="hidden sm:inline-flex">
-            <Link href="/register">Get started</Link>
-          </Button>
+          <SiteAuthLinks />
           <MobileNav />
         </div>
       </nav>

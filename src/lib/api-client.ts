@@ -48,6 +48,113 @@ export function getOrgScope(): string | null {
   return orgScope;
 }
 
+/**
+ * Cross-tab refresh coordination (the other half of reuse safety).
+ *
+ * Refresh tokens are SINGLE-USE with theft revocation: two tabs refreshing
+ * simultaneously present the same cookie, the loser looks like an attacker,
+ * and the backend revokes the whole family — forcing re-login everywhere.
+ * A localStorage lock serializes refreshes across tabs so the rotation
+ * chain never forks; a BroadcastChannel wakes followers instead of polling.
+ */
+const REFRESH_LOCK_TTL_MS = 10_000;
+const REFRESH_WAIT_MS = 12_000;
+const MAX_REFRESH_ATTEMPTS = 3;
+
+export interface RefreshLockStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+function defaultStorage(): RefreshLockStorage | null {
+  try {
+    const ls = globalThis.localStorage;
+    if (!ls) return null;
+    // Probe: private mode / disabled storage throws on access.
+    ls.getItem('propora:probe');
+    return ls;
+  } catch {
+    return null;
+  }
+}
+
+function lockKey(kind: string): string {
+  return `propora:refresh-lock:${kind}`;
+}
+
+function doneChannel(kind: string): string {
+  return `propora:refresh-done:${kind}`;
+}
+
+export function tryTakeRefreshLock(
+  kind: string,
+  storage: RefreshLockStorage | null = defaultStorage(),
+  now: number = Date.now(),
+): boolean {
+  if (!storage) return true;
+  try {
+    const raw = storage.getItem(lockKey(kind));
+    if (raw) {
+      const { at } = JSON.parse(raw) as { at: number };
+      // Held and fresh → another tab owns it. Stale (>TTL) → owner died, take over.
+      if (now - at < REFRESH_LOCK_TTL_MS) return false;
+    }
+    storage.setItem(lockKey(kind), JSON.stringify({ at: now }));
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+export function releaseRefreshLock(
+  kind: string,
+  storage: RefreshLockStorage | null = defaultStorage(),
+): void {
+  try {
+    storage?.removeItem(lockKey(kind));
+  } catch {
+    /* ignore */
+  }
+}
+
+function waitForRefreshDone(kind: string, storage: RefreshLockStorage | null = defaultStorage()): Promise<void> {
+  void storage;
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    const timer = setTimeout(finish, REFRESH_WAIT_MS);
+    try {
+      const ch = new BroadcastChannel(doneChannel(kind));
+      ch.onmessage = (e: MessageEvent) => {
+        if (e.data?.type === 'refreshed') {
+          clearTimeout(timer);
+          ch.close();
+          finish();
+        }
+      };
+    } catch {
+      clearTimeout(timer);
+      finish();
+    }
+  });
+}
+
+function notifyRefreshed(kind: string): void {
+  try {
+    const ch = new BroadcastChannel(doneChannel(kind));
+    ch.postMessage({ type: 'refreshed', at: Date.now() });
+    ch.close();
+  } catch {
+    /* BroadcastChannel unavailable — followers fall back to timeout */
+  }
+}
+
 /** Root layout registers this so a failed refresh logs out everywhere. */
 export function setOnUnauthorized(cb: (() => void) | null): void {
   onUnauthorized = cb;
@@ -87,26 +194,52 @@ export function subscribeLogout(cb: () => void): () => void {
  * callers (boot effect running twice in StrictMode, racing 401s, …) share one
  * network request so the backend never sees token reuse.
  */
+async function doRefreshNetwork(kind: 'org' | 'platform'): Promise<string | null> {
+  const url =
+    kind === 'org'
+      ? `${API_URL}${API_PREFIX}/auth/refresh`
+      : `${API_URL}${API_PREFIX}/platform/auth/refresh`;
+  try {
+    const res = await axios.post(url, {}, { withCredentials: true, timeout: 15000 });
+    const token = res.data?.accessToken as string | undefined;
+    if (kind === 'org') setAccessToken(token ?? null);
+    else setPlatformToken(token ?? null);
+    return token ?? null;
+  } catch {
+    if (kind === 'org') setAccessToken(null);
+    else setPlatformToken(null);
+    return null;
+  }
+}
+
+/**
+ * One network refresh at a time across ALL tabs (see lock above): the
+ * leader rotates, followers wait then rotate sequentially on the fresh
+ * cookie. Sequential rotation extends the chain safely; concurrent
+ * rotation trips reuse detection and kills every session.
+ */
+async function lockedRefresh(kind: 'org' | 'platform'): Promise<string | null> {
+  for (let attempt = 0; attempt < MAX_REFRESH_ATTEMPTS; attempt++) {
+    if (tryTakeRefreshLock(kind)) {
+      try {
+        return await doRefreshNetwork(kind);
+      } finally {
+        releaseRefreshLock(kind);
+        notifyRefreshed(kind);
+      }
+    }
+    await waitForRefreshDone(kind);
+  }
+  // Could not coordinate: return local state so the retried request takes
+  // the normal 401→logout path instead of forging a racing refresh.
+  return kind === 'org' ? getAccessToken() : getPlatformToken();
+}
+
 export function silentRefresh(): Promise<string | null> {
   if (!refreshPromise) {
-    refreshPromise = axios
-      .post(
-        `${API_URL}${API_PREFIX}/auth/refresh`,
-        {},
-        { withCredentials: true, timeout: 15000 },
-      )
-      .then((res) => {
-        const token = res.data?.accessToken as string | undefined;
-        setAccessToken(token ?? null);
-        return token ?? null;
-      })
-      .catch(() => {
-        setAccessToken(null);
-        return null;
-      })
-      .finally(() => {
-        refreshPromise = null;
-      });
+    refreshPromise = lockedRefresh('org').finally(() => {
+      refreshPromise = null;
+    });
   }
   return refreshPromise;
 }
@@ -114,24 +247,9 @@ export function silentRefresh(): Promise<string | null> {
 /** Platform silent refresh (separate cookie path on the API). */
 export function platformSilentRefresh(): Promise<string | null> {
   if (!platformRefreshPromise) {
-    platformRefreshPromise = axios
-      .post(
-        `${API_URL}${API_PREFIX}/platform/auth/refresh`,
-        {},
-        { withCredentials: true, timeout: 15000 },
-      )
-      .then((res) => {
-        const token = res.data?.accessToken as string | undefined;
-        setPlatformToken(token ?? null);
-        return token ?? null;
-      })
-      .catch(() => {
-        setPlatformToken(null);
-        return null;
-      })
-      .finally(() => {
-        platformRefreshPromise = null;
-      });
+    platformRefreshPromise = lockedRefresh('platform').finally(() => {
+      platformRefreshPromise = null;
+    });
   }
   return platformRefreshPromise;
 }
@@ -144,13 +262,27 @@ export function createApiClient(): AxiosInstance {
   });
 
   client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-    const isPlatform = (config.url ?? '').startsWith('/platform');
-    if (isPlatform) {
-      if (platformToken) config.headers.set('Authorization', `Bearer ${platformToken}`);
-    } else {
-      if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`);
-      if (orgScope) config.headers.set('X-Organization-Id', orgScope);
+    const url = config.url ?? '';
+    const isPlatformPath = url.startsWith('/platform');
+    // Which credential actually goes out (tracked for the 401 handler):
+    // org token normally; platform token on /platform/* OR — when there is
+    // no org session — on org paths together with X-Organization-Id
+    // (platform admin acting within a tenant).
+    let kind: 'org' | 'platform' | null = null;
+    if (isPlatformPath) {
+      if (platformToken) {
+        config.headers.set('Authorization', `Bearer ${platformToken}`);
+        kind = 'platform';
+      }
+    } else if (accessToken) {
+      config.headers.set('Authorization', `Bearer ${accessToken}`);
+      kind = 'org';
+    } else if (platformToken && orgScope) {
+      config.headers.set('Authorization', `Bearer ${platformToken}`);
+      config.headers.set('X-Organization-Id', orgScope);
+      kind = 'platform';
     }
+    (config as { _tokenKind?: 'org' | 'platform' | null })._tokenKind = kind;
     // The API 400s on empty-string optionals — strip them centrally so an
     // untouched optional input means "unchanged", never "set to empty".
     // FormData (uploads) is left untouched; nulls are kept as explicit clears.
@@ -173,26 +305,30 @@ export function createApiClient(): AxiosInstance {
   client.interceptors.response.use(
     (res) => res,
     async (error: AxiosError<ApiErrorBody>) => {
-      const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+      const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean; _tokenKind?: 'org' | 'platform' | null }) | undefined;
       const status = error.response?.status;
       const url = original?.url ?? '';
       const isRefreshCall = url.includes('/auth/refresh');
-      const isPlatformCall = url.startsWith('/platform');
+      const isPlatformPath = url.startsWith('/platform');
+      const kind = original?._tokenKind ?? null;
       // Only attempt a refresh when we actually sent a (possibly expired)
       // token. Token-less 401s (logged out) must NOT hit refresh —
       // that would be pointless traffic and risks reuse flags.
-      const headers = original?.headers as unknown as { Authorization?: unknown } | undefined;
-      const sentToken = Boolean(headers?.Authorization);
+      const sentToken = kind !== null;
       if (status === 401 && original && !original._retried && !isRefreshCall && sentToken) {
         original._retried = true;
-        const next = isPlatformCall ? await platformSilentRefresh() : await silentRefresh();
+        const next = kind === 'platform' ? await platformSilentRefresh() : await silentRefresh();
         if (next) {
           original.headers.set('Authorization', `Bearer ${next}`);
           return client(original);
         }
       }
-      if (status === 401 && !isRefreshCall && !isPlatformCall) onUnauthorized?.();
-      if (status === 401 && !isRefreshCall && isPlatformCall) onPlatformUnauthorized?.();
+      if (status === 401 && !isRefreshCall) {
+        // Route the expiry to the session that actually sent the token
+        // (public calls fall back to the path convention).
+        if (kind === 'platform' || (kind === null && isPlatformPath)) onPlatformUnauthorized?.();
+        else onUnauthorized?.();
+      }
       return Promise.reject(error);
     },
   );

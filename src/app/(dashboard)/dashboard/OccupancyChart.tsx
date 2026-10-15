@@ -17,7 +17,7 @@ export function OccupancyChart({ occupied, vacant }: { occupied: number; vacant:
       <PieChart>
         <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={3}>
           <Cell fill="#10b981" />
-          <Cell fill="#0b3b5c" />
+          <Cell fill="#047857" />
         </Pie>
         <Tooltip />
         <Legend />

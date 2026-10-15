@@ -49,7 +49,7 @@ export function Stats(): React.JSX.Element {
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: i * 0.07 }}
           >
-            <p className="text-3xl font-black text-[#0b3b5c] dark:text-emerald-400 md:text-4xl">
+            <p className="text-3xl font-black text-emerald-700 dark:text-emerald-400 md:text-4xl">
               <Counter value={s.value} prefix={s.prefix} suffix={s.suffix} />
             </p>
             <p className="mt-1 text-sm text-muted-foreground">{s.label}</p>

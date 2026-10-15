@@ -9,11 +9,14 @@ import {
   getApiStatus,
   setAccessToken,
   setOnUnauthorized,
+  setOrgScope,
+  setPlatformToken,
   silentRefresh,
   subscribeLogout,
 } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
 import { hasAnyPermission, hasPermission, isOwnerRole, normalizePermissions, roleNames } from '@/lib/permissions';
+import { setSessionKind } from '@/lib/session-flag';
 import type { AuthResponse, AuthUser } from '@/types/api';
 
 interface AuthContextValue {
@@ -27,6 +30,8 @@ interface AuthContextValue {
   retrySession: () => Promise<void>;
   can: (name: string) => boolean;
   canAny: (names: string[]) => boolean;
+  /** True when acting as a platform admin (possibly scoped to an org). */
+  isPlatformMode?: boolean;
   login: (input: { email: string; password: string }) => Promise<void>;
   register: (input: {
     organizationName: string;
@@ -40,6 +45,8 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+export { AuthContext };
 
 function toUser(data: unknown): AuthUser | null {
   if (!data || typeof data !== 'object') return null;
@@ -98,13 +105,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   }, []);
 
   const doLogout = useCallback(async () => {
+    // One human, one browser: leaving EITHER session behind on a shared
+    // machine is a leak, so org logout also ends the platform session.
     setAccessToken(null);
+    setPlatformToken(null);
+    setOrgScope(null);
+    setSessionKind('org', false);
+    setSessionKind('platform', false);
     setLoggedOut(true);
     queryClient.clear();
     try {
       await apiClient.post('/auth/logout', {});
     } catch {
       /* already logged out server-side — continue */
+    }
+    try {
+      await apiClient.post('/platform/auth/logout', {});
+    } catch {
+      /* no platform session — continue */
     }
   }, [queryClient]);
 
@@ -145,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       login: async (input) => {
         const res = await apiClient.post<AuthResponse>('/auth/login', input);
         setAccessToken(res.data.accessToken);
+        setSessionKind('org', true);
         setLoggedOut(false);
         queryClient.setQueryData(qk.me, toUser(res.data.user));
         await queryClient.invalidateQueries({ queryKey: qk.me });
@@ -153,6 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         // Register sends the welcome email synchronously (~25s+) — allow it time.
         const res = await apiClient.post<AuthResponse>('/auth/register', input, { timeout: 90000 });
         setAccessToken(res.data.accessToken);
+        setSessionKind('org', true);
         setLoggedOut(false);
         queryClient.setQueryData(qk.me, toUser(res.data.user));
         await queryClient.invalidateQueries({ queryKey: qk.me });
