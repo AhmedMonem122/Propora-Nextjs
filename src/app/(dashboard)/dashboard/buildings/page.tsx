@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
 import { normalizeList } from '@/lib/list';
@@ -22,6 +22,7 @@ import type { Building, Property } from '@/types/api';
 export default function BuildingsPage(): React.JSX.Element {
   const { can } = useAuth();
   const [propertyId, setPropertyId] = useState('');
+  const [search, setSearch] = useState('');
 
   const propsQ = useQuery({
     queryKey: qk.properties({ limit: 100 }),
@@ -51,6 +52,8 @@ export default function BuildingsPage(): React.JSX.Element {
       <PageHeader
         title="Buildings"
         description="Pick a property to manage its buildings."
+        searchValue={search}
+        onSearchChange={setSearch}
         onReload={() => void listQ.refetch()}
         reloading={listQ.isFetching}
         actions={
@@ -110,7 +113,13 @@ export default function BuildingsPage(): React.JSX.Element {
               },
             },
           ]}
-          data={listQ.data?.rows ?? []}
+          data={
+            (listQ.data?.rows ?? []).filter((b) => {
+              const term = search.toLowerCase();
+              const bb = b as Building;
+              return bb.name?.toLowerCase().includes(term) || bb.code?.toLowerCase().includes(term);
+            })
+          }
           meta={listQ.data?.meta}
           page={1}
           onPageChange={() => undefined}

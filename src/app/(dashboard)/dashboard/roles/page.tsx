@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
@@ -31,6 +31,7 @@ type Values = z.infer<typeof schema>;
 export default function RolesPage(): React.JSX.Element {
   const { can } = useAuth();
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
 
   const listQ = useQuery({
     queryKey: qk.roles,
@@ -102,6 +103,8 @@ export default function RolesPage(): React.JSX.Element {
       <PageHeader
         title="Roles"
         description="Permission checklists per role."
+        searchValue={search}
+        onSearchChange={setSearch}
         onReload={() => void listQ.refetch()}
         reloading={listQ.isFetching}
         actions={
@@ -149,7 +152,13 @@ export default function RolesPage(): React.JSX.Element {
             },
           },
         ]}
-        data={listQ.data?.rows ?? []}
+        data={
+          (listQ.data?.rows ?? []).filter((r) => {
+            const term = search.toLowerCase();
+            const rr = r as Role;
+            return rr.name?.toLowerCase().includes(term);
+          })
+        }
         meta={listQ.data?.meta}
         page={1}
         onPageChange={() => undefined}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
 import { normalizeList } from '@/lib/list';
@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
 import { StatusBadge } from '@/components/common/StatusBadge/StatusBadge';
 import { EmptyState } from '@/components/common/EmptyState/EmptyState';
 import { Button } from '@/components/ui/Button/Button';
+import { Input } from '@/components/ui/Input/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select/Select';
 import { UnitForm } from '@/components/domain/units/UnitForm/UnitForm';
 import type { Building, Property, Unit } from '@/types/api';
@@ -22,6 +23,7 @@ export default function UnitsPage(): React.JSX.Element {
   const { can } = useAuth();
   const [propertyId, setPropertyId] = useState('');
   const [buildingId, setBuildingId] = useState('');
+  const [search, setSearch] = useState('');
 
   const propsQ = useQuery({
     queryKey: qk.properties({ limit: 100 }),
@@ -55,6 +57,8 @@ export default function UnitsPage(): React.JSX.Element {
       <PageHeader
         title="Units"
         description="Pick a property, then a building."
+        searchValue={search}
+        onSearchChange={setSearch}
         onReload={() => void unitsQ.refetch()}
         reloading={unitsQ.isFetching}
         actions={
@@ -120,7 +124,13 @@ export default function UnitsPage(): React.JSX.Element {
               },
             },
           ]}
-          data={unitsQ.data?.rows ?? []}
+          data={
+            (unitsQ.data?.rows ?? []).filter((u) => {
+              const term = search.toLowerCase();
+              const uu = u as Unit;
+              return uu.name?.toLowerCase().includes(term) || uu.unitNumber?.toLowerCase().includes(term);
+            })
+          }
           meta={unitsQ.data?.meta}
           page={1}
           onPageChange={() => undefined}

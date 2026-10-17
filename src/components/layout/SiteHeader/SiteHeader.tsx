@@ -36,7 +36,10 @@ export function SiteHeader(): React.JSX.Element {
         </ul>
         <div className="flex items-center gap-1 sm:gap-2">
           <ThemeToggle />
-          <SiteAuthLinks />
+          {/* Desktop: auth buttons inline. Mobile: handled inside MobileNav drawer. */}
+          <div className="hidden md:flex">
+            <SiteAuthLinks />
+          </div>
           <MobileNav />
         </div>
       </nav>

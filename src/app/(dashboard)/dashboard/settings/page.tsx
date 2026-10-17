@@ -23,6 +23,7 @@ import type { Organization, OrgSettings } from '@/types/api';
 const profileSchema = z.object({
   firstName: z.string().optional().or(z.literal('')),
   lastName: z.string().optional().or(z.literal('')),
+  email: z.string().email('Enter a valid email.').optional().or(z.literal('')),
   phone: phoneField(),
 });
 type ProfileValues = z.infer<typeof profileSchema>;
@@ -58,8 +59,8 @@ export default function SettingsPage(): React.JSX.Element {
   const profile = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
     values: useMemo(
-      () => ({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '' }),
-      [user?.firstName, user?.lastName],
+      () => ({ firstName: user?.firstName ?? '', lastName: user?.lastName ?? '', email: user?.email ?? '' }),
+      [user?.firstName, user?.lastName, user?.email],
     ),
   });
   const locValues = useMemo<SettingsValues>(
@@ -141,8 +142,8 @@ export default function SettingsPage(): React.JSX.Element {
           <Card>
             <CardContent className="space-y-4 p-5 pt-5">
               <div>
-                <CardTitle>Profile</CardTitle>
-                <CardDescription>PATCH /auth/me</CardDescription>
+                <CardTitle>Update my profile</CardTitle>
+                <CardDescription>Your name, email and phone are shown to teammates in your workspace.</CardDescription>
               </div>
               <form onSubmit={profile.handleSubmit((v) => saveProfile.mutate(v))} className="grid grid-cols-2 gap-4" noValidate>
                 <FormField label="First name" htmlFor="s-first">
@@ -150,6 +151,9 @@ export default function SettingsPage(): React.JSX.Element {
                 </FormField>
                 <FormField label="Last name" htmlFor="s-last">
                   <Input id="s-last" autoComplete="family-name" {...profile.register('lastName')} />
+                </FormField>
+                <FormField label="Email" htmlFor="s-email" error={profile.formState.errors.email?.message} className="col-span-2">
+                  <Input id="s-email" type="email" autoComplete="email" {...profile.register('email')} />
                 </FormField>
                 <FormField label="Phone" htmlFor="s-phone" error={profile.formState.errors.phone?.message} className="col-span-2">
                   <Controller

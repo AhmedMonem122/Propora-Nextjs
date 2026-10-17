@@ -1,24 +1,24 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { usePlatform } from '@/lib/platform-context';
 import { PlatformSidebar } from '@/components/layout/PlatformSidebar/PlatformSidebar';
 import { OrgScopeBanner } from '@/components/common/OrgScopePicker/OrgScopePicker';
 import { Button } from '@/components/ui/Button/Button';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/Dialog/Dialog';
 
 function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
   const { isLoading, isAuthenticated, admin, logout } = usePlatform();
-  // "Back to app" only makes sense with a live organization session —
-  // otherwise it lands on a dashboard that instantly bounces to login.
   const { isAuthenticated: hasOrgSession } = useAuth();
   const isLogin = pathname === '/platform/login';
+  const [mobileNav, setMobileNav] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isLogin) {
@@ -62,6 +62,9 @@ function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-16 items-center gap-2 border-b bg-card px-4">
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileNav(true)} aria-label="Open navigation menu">
+            <Menu className="h-5 w-5" aria-hidden="true" />
+          </Button>
           <span className="truncate text-sm text-muted-foreground">{admin?.email ?? ''}</span>
           <span className="ml-auto" />
           {hasOrgSession ? (
@@ -83,13 +86,18 @@ function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
           {children}
         </main>
       </div>
+      <Dialog open={mobileNav} onOpenChange={setMobileNav}>
+        <DialogContent className="left-0 top-0 h-full w-72 max-w-[80vw] translate-x-0 translate-y-0 rounded-none p-0" aria-label="Navigation">
+          <DialogTitle className="border-b p-4 font-bold">Platform</DialogTitle>
+          <div className="h-[calc(100vh-4rem)]">
+            <PlatformSidebar onNavigate={() => setMobileNav(false)} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }): React.JSX.Element {
-  // Single PlatformAuthProvider lives in root Providers — a nested one here
-  // used to fork admin/scope state, so "act as org" evaporated the moment you
-  // left /platform/* (dashboard ScopeGate with a scope that was just set).
   return <Shell>{children}</Shell>;
 }

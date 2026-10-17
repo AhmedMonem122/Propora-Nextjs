@@ -22,6 +22,9 @@ export const metadata: Metadata = {
     description: 'Property management, reimagined: portfolio, leases, billing and maintenance in one dashboard.',
   },
   twitter: { card: 'summary_large_image', title: 'Propora', description: 'Better Properties. Happier Communities.' },
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export const viewport: Viewport = { themeColor: '#047857' };
