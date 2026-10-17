@@ -21,6 +21,8 @@ export default function NotificationsPage(): React.JSX.Element {
     refetchInterval: 60_000,
   });
 
+  const allRead = list.rows.length > 0 && list.rows.every((n) => n.read);
+
   const markRead = useMutation({
     mutationFn: (id: string) => apiClient.patch(`/notifications/${id}/read`, {}),
     onMutate: async (id: string) => {
@@ -48,7 +50,7 @@ export default function NotificationsPage(): React.JSX.Element {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     onSuccess: () => {
-      toast.success('Updated successfully.');
+      toast.success('Marked as read.');
     },
   });
 
@@ -76,10 +78,24 @@ export default function NotificationsPage(): React.JSX.Element {
     },
     { header: 'Received', accessorKey: 'createdAt', cell: ({ row }) => formatDateTime(row.original.createdAt) },
     {
+      header: 'Status', id: 'status',
+      cell: ({ row }) => {
+        const n = row.original;
+        return n.read ? (
+          <span className="flex items-center gap-1 text-emerald-600 text-sm font-medium" aria-label="Read">
+            <CheckCheck className="h-4 w-4" aria-hidden="true" /> Read
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-sm">Unread</span>
+        );
+      },
+    },
+    {
       header: 'Actions', id: 'actions',
       cell: ({ row }) => {
         const n = row.original;
-        return n.read ? null : (
+        if (n.read) return null;
+        return (
           <Button variant="ghost" size="sm" pending={markRead.isPending} onClick={() => markRead.mutate(n.id)}>
             <Check className="h-4 w-4" aria-hidden="true" /> Mark read
           </Button>
@@ -98,8 +114,20 @@ export default function NotificationsPage(): React.JSX.Element {
         onReload={list.refetch}
         reloading={list.isFetching}
         actions={
-          <Button size="sm" variant="outline" pending={readAll.isPending} onClick={() => readAll.mutate()}>
-            <CheckCheck className="h-4 w-4" aria-hidden="true" /> Mark all read
+          <Button
+            size="sm"
+            variant="outline"
+            pending={readAll.isPending}
+            onClick={() => readAll.mutate()}
+            disabled={allRead || readAll.isPending}
+          >
+          {allRead ? (
+            <CheckCheck className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <CheckCheck className="h-4 w-4" aria-hidden="true" />
+          )}
+            {' '}
+            {allRead ? 'All read' : 'Mark all read'}
           </Button>
         }
       />

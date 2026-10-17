@@ -24,14 +24,14 @@ export function SiteAuthLinks({
 
   if (!kind) {
     return (
-      <>
+      <div className="flex items-center gap-2">
         <Button variant="outline" asChild onClick={onNavigate} className={mobile ? 'w-full' : undefined}>
           <Link href="/login">Log in</Link>
         </Button>
         <Button variant="accent" asChild onClick={onNavigate} className={mobile ? 'w-full' : undefined}>
           <Link href="/register">Get started</Link>
         </Button>
-      </>
+      </div>
     );
   }
 

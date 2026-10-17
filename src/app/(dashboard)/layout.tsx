@@ -62,11 +62,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Definitive logout only (no session / revoked). Transient session errors
   // keep the user here with a retry — they must never bounce to login.
+  // If the admin had an org scope before reload, keep them on the page
+  // (show ScopeGate if scope needs re-picking) instead of bouncing to login.
   useEffect(() => {
-    if (!org.isLoading && !org.isAuthenticated && !org.sessionError && !platformMode && !platform.isLoading) {
+    const shouldRedirect =
+      !org.isLoading &&
+      !org.isAuthenticated &&
+      !org.sessionError &&
+      !platformMode &&
+      !platform.isLoading &&
+      !platform.orgScope;
+    if (shouldRedirect) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     }
-  }, [org.isLoading, org.isAuthenticated, org.sessionError, platformMode, platform.isLoading, router, pathname]);
+  }, [org.isLoading, org.isAuthenticated, org.sessionError, platformMode, platform.isLoading, platform.orgScope, router, pathname]);
 
   const toggleCmd = useCallback(() => setCmdOpen((v) => !v), []);
 

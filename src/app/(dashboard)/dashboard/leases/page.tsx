@@ -120,7 +120,7 @@ export default function LeasesPage(): React.JSX.Element {
     <>
       <PageHeader
         title="Leases"
-        description="Unit ↔ resident contracts. Overlap conflicts (409) surface from the API."
+        description="Your rental contracts — tenants, units, and payment status."
         searchValue={list.search}
         onSearchChange={list.setSearch}
         onReload={list.refetch}
