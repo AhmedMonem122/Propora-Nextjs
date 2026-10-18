@@ -7,6 +7,7 @@ import {
   apiClient,
   broadcastLogout,
   getApiStatus,
+  getPlatformToken,
   setAccessToken,
   setOnUnauthorized,
   setOrgScope,
@@ -107,14 +108,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     };
   }, []);
 
-  const doLogout = useCallback(async () => {
-    // One human, one browser: leaving EITHER session behind on a shared
-    // machine is a leak, so org logout also ends the platform session.
+  const doLogout = useCallback(async (clearAll = true) => {
+    // Org-only 401 (e.g. platform admin hitting /auth/me with no org token)
+    // must NOT clear the platform session — otherwise a reload boots the
+    // admin back to login even though the platform session is still valid.
     setAccessToken(null);
-    setPlatformToken(null);
-    setOrgScope(null);
-    setSessionKind('org', false);
-    setSessionKind('platform', false);
+    if (clearAll) {
+      setPlatformToken(null);
+      setSessionKind('platform', false);
+    }
+    // Only clear the persisted org scope on a full logout. An org-only 401
+    // (platform admin acting as a tenant) keeps the scope so a reload keeps
+    // the admin on the same organization dashboard instead of bouncing out.
+    if (clearAll) {
+      setOrgScope(null);
+      setSessionKind('org', false);
+    }
     setLoggedOut(true);
     queryClient.clear();
     try {
@@ -122,16 +131,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     } catch {
       /* already logged out server-side — continue */
     }
-    try {
-      await apiClient.post('/platform/auth/logout', {});
-    } catch {
-      /* no platform session — continue */
+    if (clearAll) {
+      try {
+        await apiClient.post('/platform/auth/logout', {});
+      } catch {
+        /* no platform session — continue */
+      }
     }
   }, [queryClient]);
 
   useEffect(() => {
     setOnUnauthorized(() => {
-      void doLogout().finally(() => router.replace('/login'));
+      // If a platform session is active, an org /auth/me 401 is expected
+      // (platform admin acting as a tenant has no org session). Do not log
+      // out — stay on the page so a reload keeps the admin on the same org.
+      if (getPlatformToken()) return;
+      void doLogout(false).finally(() => router.replace('/login'));
     });
     const unsub = subscribeLogout(() => {
       void doLogout().finally(() => router.replace('/login'));

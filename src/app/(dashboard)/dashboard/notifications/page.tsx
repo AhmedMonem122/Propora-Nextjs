@@ -25,32 +25,12 @@ export default function NotificationsPage(): React.JSX.Element {
 
   const markRead = useMutation({
     mutationFn: (id: string) => apiClient.patch(`/notifications/${id}/read`, {}),
-    onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: ['notifications'] });
-      const previous = queryClient.getQueriesData({ queryKey: ['notifications'] });
-      queryClient.setQueriesData<{ data: Notification[]; meta: unknown }>(
-        { queryKey: ['notifications'] },
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            data: old.data.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n)),
-          };
-        },
-      );
-      return { previous };
-    },
-    onError: (e, _id, context) => {
-      for (const [key, data] of (context?.previous ?? []) as Array<[never, never]>) {
-        queryClient.setQueryData(key, data);
-      }
-      toast.error(getApiMessage(e, 'Operation failed.'));
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
     onSuccess: () => {
       toast.success('Marked as read.');
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+    onError: (e) => {
+      toast.error(getApiMessage(e, 'Operation failed.'));
     },
   });
 
