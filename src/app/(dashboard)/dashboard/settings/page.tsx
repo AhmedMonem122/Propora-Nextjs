@@ -6,6 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { AlertTriangle, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
 import { phoneField } from '@/schemas/phone';
@@ -18,6 +19,7 @@ import { PasswordInput } from '@/components/ui/PasswordInput/PasswordInput';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/Card/Card';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { FormField, FormSelect } from '@/components/common/FormField/FormField';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog/Dialog';
 import type { Organization, OrgSettings } from '@/types/api';
 
 const profileSchema = z.object({
@@ -42,7 +44,7 @@ const passwordSchema = z.object({
 type PasswordValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsPage(): React.JSX.Element {
-  const { can, refreshUser, user } = useAuth();
+  const { can, refreshUser, user, logout } = useAuth();
   const queryClient = useQueryClient();
   /** Local override only — falls back to server data until the user types. */
   const [orgName, setOrgName] = useState<string | undefined>(undefined);
@@ -117,6 +119,16 @@ export default function SettingsPage(): React.JSX.Element {
     onSuccess: () => {
       toast.success('Updated successfully.');
       pwd.reset();
+    },
+    onError: (e) => toast.error(getApiMessage(e, 'Operation failed.')),
+  });
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const deleteMe = useMutation({
+    mutationFn: () => apiClient.delete('/auth/me'),
+    onSuccess: () => {
+      toast.success('Account deactivated.');
+      void logout();
     },
     onError: (e) => toast.error(getApiMessage(e, 'Operation failed.')),
   });
@@ -233,8 +245,50 @@ export default function SettingsPage(): React.JSX.Element {
               </Card>
             </>
           ) : null}
+          <Card className="col-span-full">
+            <CardContent className="space-y-4 p-5 pt-5">
+              <div>
+                <CardTitle>Danger Zone</CardTitle>
+                <CardDescription>Permanently deactivate your account. You can log back in to reactivate.</CardDescription>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteOpen(true)}
+                className="w-full"
+                disabled={deleteMe.isPending}
+              >
+                {deleteMe.isPending ? (
+                  <>
+                    <LogOut className="h-4 w-4" aria-hidden="true" /> Deactivating…
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-4 w-4" aria-hidden="true" /> Delete my account
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       )}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete my account</DialogTitle>
+          </DialogHeader>
+          <p className="mb-6 text-sm text-muted-foreground">
+            This will deactivate your account. Your data will be kept for audit purposes. You can log back in at any time to reactivate.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => deleteMe.mutate()} pending={deleteMe.isPending}>
+              Deactivate account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

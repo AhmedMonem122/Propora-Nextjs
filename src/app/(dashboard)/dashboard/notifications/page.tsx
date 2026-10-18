@@ -21,7 +21,7 @@ export default function NotificationsPage(): React.JSX.Element {
     refetchInterval: 60_000,
   });
 
-  const allRead = list.rows.length > 0 && list.rows.every((n) => n.read);
+  const allRead = list.rows.length > 0 && list.rows.every((n) => Boolean(n.readAt));
 
   const markRead = useMutation({
     mutationFn: (id: string) => apiClient.patch(`/notifications/${id}/read`, {}),
@@ -34,7 +34,7 @@ export default function NotificationsPage(): React.JSX.Element {
           if (!old) return old;
           return {
             ...old,
-            data: old.data.map((n) => (n.id === id ? { ...n, read: true, readAt: new Date().toISOString() } : n)),
+            data: old.data.map((n) => (n.id === id ? { ...n, readAt: new Date().toISOString() } : n)),
           };
         },
       );
@@ -70,7 +70,7 @@ export default function NotificationsPage(): React.JSX.Element {
         const n = row.original;
         return (
           <div>
-            <p className="font-medium">{n.title} {!n.read ? <Badge variant="success" className="ml-1">new</Badge> : null}</p>
+            <p className="font-medium">{n.title} {!n.readAt ? <Badge variant="success" className="ml-1">new</Badge> : null}</p>
             {n.body ? <p className="text-sm text-muted-foreground">{n.body}</p> : null}
           </div>
         );
@@ -81,7 +81,7 @@ export default function NotificationsPage(): React.JSX.Element {
       header: 'Status', id: 'status',
       cell: ({ row }) => {
         const n = row.original;
-        return n.read ? (
+        return n.readAt ? (
           <span className="flex items-center gap-1 text-emerald-600 text-sm font-medium" aria-label="Read">
             <CheckCheck className="h-4 w-4" aria-hidden="true" /> Read
           </span>
@@ -94,7 +94,7 @@ export default function NotificationsPage(): React.JSX.Element {
       header: 'Actions', id: 'actions',
       cell: ({ row }) => {
         const n = row.original;
-        if (n.read) return null;
+        if (n.readAt) return null;
         return (
           <Button variant="ghost" size="sm" pending={markRead.isPending} onClick={() => markRead.mutate(n.id)}>
             <Check className="h-4 w-4" aria-hidden="true" /> Mark read
@@ -121,11 +121,11 @@ export default function NotificationsPage(): React.JSX.Element {
             onClick={() => readAll.mutate()}
             disabled={allRead || readAll.isPending}
           >
-          {allRead ? (
-            <CheckCheck className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <CheckCheck className="h-4 w-4" aria-hidden="true" />
-          )}
+            {allRead ? (
+              <CheckCheck className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Check className="h-4 w-4" aria-hidden="true" />
+            )}
             {' '}
             {allRead ? 'All read' : 'Mark all read'}
           </Button>
