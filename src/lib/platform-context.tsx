@@ -108,6 +108,33 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
     };
   }, []);
 
+  // On client mount, restore the persisted org scope from localStorage if the
+  // SSR initializer left it null (window is undefined on the server). Without
+  // this, a platform admin acting as a tenant gets kicked to ScopeGate on
+  // every reload instead of staying on the organization dashboard.
+  useEffect(() => {
+    if (scope.id) return;
+    let alive = true;
+    const saved = typeof window !== 'undefined'
+      ? window.localStorage.getItem('propora.orgScope')
+      : null;
+    if (!saved || !alive) return;
+    void apiClient
+      .get(`/platform/organizations/${saved}`)
+      .then((res) => {
+        if (!alive) return;
+        const name = (res.data as { name?: string } | undefined)?.name;
+        setScopeState({ id: saved, name: name ?? saved.slice(0, 8) });
+      })
+      .catch(() => {
+        // Scope points at a deleted org: drop it.
+        if (alive) setScopeState({ id: null, name: null });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [scope.id]);
+
   // Restore the persisted scope's display name after a reload.
   useEffect(() => {
     if (!scope.id || scope.name) return;
