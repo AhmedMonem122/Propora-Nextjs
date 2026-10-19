@@ -64,6 +64,13 @@ export function setOrgScope(organizationId: string | null): void {
 }
 
 export function getOrgScope(): string | null {
+  if (typeof window !== 'undefined') {
+    try {
+      return window.localStorage.getItem(ORG_SCOPE_STORAGE_KEY);
+    } catch {
+      /* storage unavailable — fall back to in-memory scope */
+    }
+  }
   return orgScope;
 }
 
