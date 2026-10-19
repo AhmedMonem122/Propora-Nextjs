@@ -64,11 +64,10 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const doLogout = useCallback(async () => {
-    // End platform session only. Preserve the org scope so that on reload the
-    // admin stays on the same organization dashboard instead of being kicked
-    // back to platform overview / ScopeGate.
+    // Mirror of the org logout: end both sessions, clear cached org data.
     setPlatformToken(null);
     setAccessToken(null);
+    setScope(null);
     setSessionKind('platform', false);
     setSessionKind('org', false);
     setAdmin(null);
@@ -83,7 +82,7 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
     } catch {
       /* no org session */
     }
-  }, [queryClient]);
+  }, [setScope, queryClient]);
 
   useEffect(() => {
     let alive = true;
