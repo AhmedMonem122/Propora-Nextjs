@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   apiClient,
-  getOrgScope,
   getPlatformToken,
   platformSilentRefresh,
   setAccessToken,
@@ -55,7 +54,7 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
   const [admin, setAdmin] = useState<PlatformAdmin | null>(null);
   const [booted, setBooted] = useState(false);
   const [scope, setScopeState] = useState<{ id: string | null; name: string | null }>(
-    () => ({ id: getOrgScope(), name: null }),
+    () => ({ id: null, name: null }),
   );
 
   const setScope = useCallback((orgId: string | null, orgName?: string | null) => {
@@ -108,17 +107,25 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
     };
   }, []);
 
-  // On client mount, restore the persisted org scope from localStorage if the
-  // SSR initializer left it null (window is undefined on the server). Without
-  // this, a platform admin acting as a tenant gets kicked to ScopeGate on
-  // every reload instead of staying on the organization dashboard.
+  // On client mount, restore the persisted org scope from localStorage. The
+  // useState initializer above always returns null on the server (no window),
+  // so we re-read localStorage here on the client so a platform admin acting
+  // as a tenant stays on the same organization dashboard after reload instead
+  // of being kicked to ScopeGate.
   useEffect(() => {
-    if (scope.id) return;
     let alive = true;
-    const saved = typeof window !== 'undefined'
-      ? window.localStorage.getItem('propora.orgScope')
-      : null;
+    const saved =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem('propora.orgScope')
+        : null;
     if (!saved || !alive) return;
+    // Defer the state update to the next microtask to avoid cascading renders
+    // from calling setState synchronously inside an effect body.
+    Promise.resolve().then(() => {
+      if (!alive) return;
+      setScopeState({ id: saved, name: null });
+    });
+    // Fetch the org's display name in the background (non-blocking).
     void apiClient
       .get(`/platform/organizations/${saved}`)
       .then((res) => {
@@ -127,15 +134,15 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
         setScopeState({ id: saved, name: name ?? saved.slice(0, 8) });
       })
       .catch(() => {
-        // Scope points at a deleted org: drop it.
-        if (alive) setScopeState({ id: null, name: null });
+        // Keep the scope ID even if the name lookup fails (org may be deleted
+        // or temporarily unreachable); the ID is enough for X-Organization-Id.
       });
     return () => {
       alive = false;
     };
-  }, [scope.id]);
+  }, []);
 
-  // Restore the persisted scope's display name after a reload.
+  // Restore the persisted scope's display name after a scope change.
   useEffect(() => {
     if (!scope.id || scope.name) return;
     let alive = true;
@@ -147,7 +154,6 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
         setScopeState({ id: scope.id, name: name ?? null });
       })
       .catch(() => {
-        // Scope points at a deleted org (or no platform session): drop it.
         if (alive && !getPlatformToken()) setScopeState({ id: null, name: null });
       });
     return () => {
