@@ -112,6 +112,10 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
   // so we re-read localStorage here on the client so a platform admin acting
   // as a tenant stays on the same organization dashboard after reload instead
   // of being kicked to ScopeGate.
+  // We deliberately do NOT fetch the org name here: a 401 on
+  // /platform/organizations/{id} would trigger the axios 401 interceptor and
+  // log the user out. The ID is enough for X-Organization-Id; the name is
+  // displayed as a truncated slice in the banner.
   useEffect(() => {
     let alive = true;
     const saved =
@@ -125,37 +129,19 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
       if (!alive) return;
       setScopeState({ id: saved, name: null });
     });
-    // Fetch the org's display name in the background (non-blocking).
-    void apiClient
-      .get(`/platform/organizations/${saved}`)
-      .then((res) => {
-        if (!alive) return;
-        const name = (res.data as { name?: string } | undefined)?.name;
-        setScopeState({ id: saved, name: name ?? saved.slice(0, 8) });
-      })
-      .catch(() => {
-        // Keep the scope ID even if the name lookup fails (org may be deleted
-        // or temporarily unreachable); the ID is enough for X-Organization-Id.
-      });
     return () => {
       alive = false;
     };
   }, []);
 
   // Restore the persisted scope's display name after a scope change.
+  // Fetching the name here risks a 401 → logout, so we only update the name
+  // when setScope() is called with an explicit name (from the org picker).
   useEffect(() => {
     if (!scope.id || scope.name) return;
     let alive = true;
-    void apiClient
-      .get(`/platform/organizations/${scope.id}`)
-      .then((res) => {
-        if (!alive) return;
-        const name = (res.data as { name?: string } | undefined)?.name;
-        setScopeState({ id: scope.id, name: name ?? null });
-      })
-      .catch(() => {
-        if (alive && !getPlatformToken()) setScopeState({ id: null, name: null });
-      });
+    // Name lookup deferred: org name is set via setScope() when the admin
+    // picks an org from the picker. No background fetch to avoid 401 logout.
     return () => {
       alive = false;
     };
