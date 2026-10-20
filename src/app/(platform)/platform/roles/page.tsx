@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useUrlState } from '@/hooks/useUrlState';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { Card, CardContent } from '@/components/ui/Card/Card';
@@ -22,7 +22,8 @@ interface OrgRole {
 }
 
 export default function PlatformRolesPage(): React.JSX.Element {
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const [orgId, setOrgId] = useUrlState('organizationId');
+  const [search, setSearch] = useUrlState('search');
 
   const rolesQ = useQuery({
     queryKey: ['platform', 'roles', orgId],
@@ -74,6 +75,8 @@ export default function PlatformRolesPage(): React.JSX.Element {
       <PageHeader
         title="Roles"
         description="Pick an organization to inspect its roles (ids for assignment)."
+        searchValue={search}
+        onSearchChange={setSearch}
         onReload={() => void rolesQ.refetch()}
         reloading={rolesQ.isFetching}
       />
@@ -81,8 +84,8 @@ export default function PlatformRolesPage(): React.JSX.Element {
         <CardContent className="space-y-2 p-5">
           <p className="text-sm font-medium">Organization</p>
           <EntityPicker
-            value={orgId}
-            onChange={setOrgId}
+            value={orgId || null}
+            onChange={(v) => setOrgId(v ?? '')}
             cacheKey="picker-platform-orgs-roles"
             dialogTitle="Select organization"
             fetchPage={async ({ search, page }) => {
@@ -113,7 +116,14 @@ export default function PlatformRolesPage(): React.JSX.Element {
       ) : (
         <DataTable
           columns={columns}
-          data={rolesQ.data ?? []}
+          data={(rolesQ.data ?? []).filter((r) => {
+            const term = search.trim().toLowerCase();
+            if (!term) return true;
+            return (
+              r.name.toLowerCase().includes(term) ||
+              (r.description ?? '').toLowerCase().includes(term)
+            );
+          })}
           meta={null}
           page={1}
           onPageChange={() => undefined}

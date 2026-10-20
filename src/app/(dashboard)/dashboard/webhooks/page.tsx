@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
 import { normalizeList } from '@/lib/list';
+import { useUrlState } from '@/hooks/useUrlState';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
@@ -45,6 +46,7 @@ export default function WebhooksPage(): React.JSX.Element {
   });
 
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useUrlState('search');
   const [editing, setEditing] = useState<Webhook | null>(null);
   const [events, setEvents] = useState<string[]>([]);
   const [deleting, setDeleting] = useState<Webhook | null>(null);
@@ -113,6 +115,8 @@ export default function WebhooksPage(): React.JSX.Element {
       <PageHeader
         title="Webhooks"
         description="Event integrations with test-ping and delivery history."
+        searchValue={search}
+        onSearchChange={setSearch}
         onReload={() => void listQ.refetch()}
         reloading={listQ.isFetching}
         actions={
@@ -167,7 +171,15 @@ export default function WebhooksPage(): React.JSX.Element {
             },
           },
         ]}
-        data={listQ.data?.rows ?? []}
+        data={(listQ.data?.rows ?? []).filter((w) => {
+          const term = search.trim().toLowerCase();
+          if (!term) return true;
+          const hook = w as Webhook;
+          return (
+            hook.url.toLowerCase().includes(term) ||
+            (hook.events ?? []).some((e) => e.toLowerCase().includes(term))
+          );
+        })}
         meta={listQ.data?.meta}
         page={1}
         onPageChange={() => undefined}

@@ -6,7 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { AlertTriangle, LogOut } from 'lucide-react';
+import { AlertTriangle, Copy, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
 import { phoneField } from '@/schemas/phone';
@@ -56,6 +56,12 @@ export default function SettingsPage(): React.JSX.Element {
   const settingsQ = useQuery({
     queryKey: qk.orgSettings,
     queryFn: async () => (await apiClient.get('/organizations/me/settings')).data as OrgSettings,
+  });
+  const inviteQ = useQuery({
+    queryKey: qk.orgInvite,
+    queryFn: async () =>
+      (await apiClient.get('/organizations/me/invite-code')).data as { inviteCode: string },
+    enabled: can('organization:read'),
   });
 
   const profile = useForm<ProfileValues>({
@@ -119,6 +125,18 @@ export default function SettingsPage(): React.JSX.Element {
     onSuccess: () => {
       toast.success('Updated successfully.');
       pwd.reset();
+    },
+    onError: (e) => toast.error(getApiMessage(e, 'Operation failed.')),
+  });
+
+  const [regenerateOpen, setRegenerateOpen] = useState(false);
+  const regenerateInvite = useMutation({
+    mutationFn: async () =>
+      (await apiClient.patch('/organizations/me/invite-code', {})).data as { inviteCode: string },
+    onSuccess: (data) => {
+      toast.success('New invite code generated. The old code no longer works.');
+      setRegenerateOpen(false);
+      queryClient.setQueryData(qk.orgInvite, data);
     },
     onError: (e) => toast.error(getApiMessage(e, 'Operation failed.')),
   });
@@ -243,6 +261,52 @@ export default function SettingsPage(): React.JSX.Element {
                   </form>
                 </CardContent>
               </Card>
+              <Card>
+                <CardContent className="space-y-4 p-5 pt-5">
+                  <div>
+                    <CardTitle>Invite code</CardTitle>
+                    <CardDescription>
+                      Teammates register with this code to join your workspace. Regenerating
+                      invalidates the old one immediately.
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code
+                      className="min-w-0 flex-1 truncate rounded-lg border bg-muted px-3 py-2 font-mono text-sm"
+                      aria-label="Organization invite code"
+                    >
+                      {inviteQ.isLoading ? 'Loading…' : (inviteQ.data?.inviteCode ?? 'Unavailable')}
+                    </code>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      aria-label="Copy invite code"
+                      disabled={!inviteQ.data?.inviteCode}
+                      onClick={() => {
+                        const code = inviteQ.data?.inviteCode;
+                        if (!code) return;
+                        void navigator.clipboard
+                          .writeText(code)
+                          .then(() => toast.success('Invite code copied.'))
+                          .catch(() => toast.error('Could not copy — select the code manually.'));
+                      }}
+                    >
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+                  {can('organization:update') ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setRegenerateOpen(true)}
+                      disabled={inviteQ.isLoading}
+                    >
+                      <RefreshCw className="h-4 w-4" aria-hidden="true" /> Regenerate code
+                    </Button>
+                  ) : null}
+                </CardContent>
+              </Card>
             </>
           ) : null}
           <Card className="col-span-full">
@@ -271,6 +335,29 @@ export default function SettingsPage(): React.JSX.Element {
           </Card>
         </div>
       )}
+      <Dialog open={regenerateOpen} onOpenChange={setRegenerateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Regenerate invite code?</DialogTitle>
+          </DialogHeader>
+          <p className="mb-6 text-sm text-muted-foreground">
+            Anyone holding the current code will no longer be able to join with it. Existing
+            members are not affected.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRegenerateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => regenerateInvite.mutate()}
+              pending={regenerateInvite.isPending}
+            >
+              Regenerate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>

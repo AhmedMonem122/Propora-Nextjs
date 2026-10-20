@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { useUrlState } from '@/hooks/useUrlState';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { Input } from '@/components/ui/Input/Input';
@@ -10,10 +11,10 @@ import type { AuditLog } from '@/types/api';
 import type { ColumnDef } from '@tanstack/react-table';
 
 export default function AuditLogsPage(): React.JSX.Element {
-  const [action, setAction] = useState('');
-  const [entityType, setEntityType] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [action, setAction] = useUrlState('action');
+  const [entityType, setEntityType] = useUrlState('entityType');
+  const [from, setFrom] = useUrlState('from');
+  const [to, setTo] = useUrlState('to');
   const extra = useMemo(
     () => ({
       ...(action ? { action } : {}),

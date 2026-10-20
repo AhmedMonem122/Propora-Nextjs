@@ -12,6 +12,7 @@ import { apiClient, getApiMessage } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
 import { normalizeList } from '@/lib/list';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { useUrlState } from '@/hooks/useUrlState';
 import { useCreateEntity, useDeleteEntity, useUpdateEntity } from '@/hooks/useEntityMutations';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
@@ -39,8 +40,8 @@ export default function MaintenancePage(): React.JSX.Element {
   const { can } = useAuth();
   const queryClient = useQueryClient();
 
-  const [status, setStatus] = useState('');
-  const [priority, setPriority] = useState('');
+  const [status, setStatus] = useUrlState('status');
+  const [priority, setPriority] = useUrlState('priority');
   const extra = useMemo(
     () => ({ ...(status ? { status } : {}), ...(priority ? { priority } : {}) }),
     [status, priority],

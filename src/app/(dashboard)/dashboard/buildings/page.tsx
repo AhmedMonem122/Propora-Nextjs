@@ -9,6 +9,7 @@ import { qk } from '@/lib/query-client';
 import { normalizeList } from '@/lib/list';
 import { useAuth } from '@/lib/auth-context';
 import { useCreateEntity, useDeleteEntity, useUpdateEntity } from '@/hooks/useEntityMutations';
+import { useUrlState } from '@/hooks/useUrlState';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
@@ -21,8 +22,8 @@ import type { Building, Property } from '@/types/api';
 
 export default function BuildingsPage(): React.JSX.Element {
   const { can } = useAuth();
-  const [propertyId, setPropertyId] = useState('');
-  const [search, setSearch] = useState('');
+  const [propertyId, setPropertyId] = useUrlState('propertyId');
+  const [search, setSearch] = useUrlState('search');
 
   const propsQ = useQuery({
     queryKey: qk.properties({ limit: 100 }),

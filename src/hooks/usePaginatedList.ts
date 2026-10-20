@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { DEFAULT_LIMIT } from '@/lib/constants';
+import { writeQueryParams } from '@/hooks/useUrlState';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { Paginated } from '@/types/api';
 
@@ -15,6 +16,11 @@ function cleanParams(params: Record<string, unknown>): Record<string, string | n
     if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') out[k] = v;
   }
   return out;
+}
+
+function parsePage(raw: string | null): number {
+  const n = Number(raw ?? '1');
+  return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
 export interface PaginatedList<T> {
@@ -32,10 +38,11 @@ export interface PaginatedList<T> {
 
 /**
  * Standard server-search + server-pagination state for every table.
- * `extra` filters must be memoized by the caller.
+ * `extra` filters must be memoized by the caller; keep those in the URL with
+ * `useUrlState` so every filter is deep-linkable.
  *
- * Search, page, and extra filter keys are synced to URL search params so
- * state survives reload and can be bookmarked/shared.
+ * `page` and `search` are synced to URL search params: reloading, sharing a
+ * link, and browser back/forward all restore the exact table view.
  */
 export function usePaginatedList<T>(
   keyPrefix: string,
@@ -47,47 +54,47 @@ export function usePaginatedList<T>(
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Read initial state from URL search params (only on first render).
-  const urlPage = Number(searchParams.get('page') ?? '1');
-  const urlSearch = searchParams.get('search') ?? '';
-  const [page, setPageState] = useState(Number.isFinite(urlPage) && urlPage > 0 ? urlPage : 1);
-  const [search, setSearchState] = useState(urlSearch);
+  // Initial state comes from the URL (deep link / reload).
+  const [page, setPageState] = useState(() => parsePage(searchParams.get('page')));
+  const [search, setSearchState] = useState(() => searchParams.get('search') ?? '');
   const debounced = useDebouncedValue(search);
 
-  // Sync search/page to URL when they change (no scroll, no push — replace).
-  // NOTE: this MUST be a useEffect (never useMemo): it runs a router.replace
-  // side-effect after render with the live pathname. Running it during render
-  // (useMemo) with window.location.pathname (stale mid-navigation) would
-  // replace the incoming route back to the previous page — bouncing every
-  // dashboard page back to Overview.
+  const lastWritten = useRef(`${parsePage(searchParams.get('page'))}|${searchParams.get('search') ?? ''}`);
+  const pending = useRef(false);
+
+  // Write page/search to the URL after render (never during render: a
+  // render-phase router.replace with a stale pathname bounced every
+  // dashboard sub-page back to Overview).
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (page === 1) params.delete('page');
-    else params.set('page', String(page));
-
-    if (search) params.set('search', search);
-    else params.delete('search');
-
-    // Sync known extra filter keys that are scalar values.
-    if (extra) {
-      for (const [k, v] of Object.entries(extra)) {
-        if (v === undefined || v === null || v === '') {
-          params.delete(k);
-        } else if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
-          params.set(k, String(v));
-        }
-      }
+    const serialized = `${page}|${search}`;
+    if (serialized === lastWritten.current) {
+      pending.current = false;
+      return;
     }
+    lastWritten.current = serialized;
+    const navigated = writeQueryParams(pathname, router, searchParams, (params) => {
+      if (page === 1) params.delete('page');
+      else params.set('page', String(page));
+      if (search) params.set('search', search);
+      else params.delete('search');
+    });
+    pending.current = navigated;
+  }, [page, search, pathname, router, searchParams]);
 
-    const qs = params.toString();
-    const target = `${pathname}${qs ? '?' + qs : ''}`;
-    // Guard: never replace when nothing changed — router.replace re-renders
-    // useSearchParams, which would re-trigger this effect in an infinite loop.
-    const current = `${pathname}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
-    if (target !== current) {
-      void router.replace(target, { scroll: false });
+  // Adopt external URL changes (back/forward or a shared link) into state.
+  useEffect(() => {
+    const urlPage = parsePage(searchParams.get('page'));
+    const urlSearch = searchParams.get('search') ?? '';
+    const serialized = `${urlPage}|${urlSearch}`;
+    if (serialized === lastWritten.current) {
+      pending.current = false;
+      return;
     }
-  }, [page, search, extra, pathname, router, searchParams]);
+    if (pending.current) return;
+    lastWritten.current = serialized;
+    setPageState(urlPage);
+    setSearchState(urlSearch);
+  }, [searchParams]);
 
   const params = useMemo(
     () => cleanParams({ page, limit: DEFAULT_LIMIT, search: debounced || undefined, ...(extra ?? {}) }),

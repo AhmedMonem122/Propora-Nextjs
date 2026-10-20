@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Check, CheckCheck } from 'lucide-react';
 import { apiClient, getApiMessage } from '@/lib/api-client';
-import { usePaginatedList } from '@/hooks/usePaginatedList';import { PageHeader } from '@/components/common/PageHeader/PageHeader';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { useUrlState } from '@/hooks/useUrlState';import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { Button } from '@/components/ui/Button/Button';
 import { Badge } from '@/components/ui/Badge/Badge';
@@ -15,7 +16,9 @@ import type { ColumnDef } from '@tanstack/react-table';
 
 export default function NotificationsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
-  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [unreadParam, setUnreadParam] = useUrlState('unread');
+  const unreadOnly = unreadParam === '1';
+  const setUnreadOnly = (next: boolean) => setUnreadParam(next ? '1' : '');
   const extra = useMemo(() => (unreadOnly ? { unreadOnly: true } : {}), [unreadOnly]);
   const list = usePaginatedList<Notification>('notifications', '/notifications', extra, {
     refetchInterval: 60_000,

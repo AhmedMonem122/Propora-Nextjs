@@ -21,6 +21,7 @@ export const qk = {
   me: ['me'] as const,
   org: ['org'] as const,
   orgSettings: ['org', 'settings'] as const,
+  orgInvite: ['org', 'invite-code'] as const,
   properties: (params?: unknown) => ['properties', params ?? 'all'] as const,
   property: (id: string) => ['properties', id] as const,
   buildings: (params?: unknown) => ['buildings', params ?? 'all'] as const,

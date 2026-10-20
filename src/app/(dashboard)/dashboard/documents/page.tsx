@@ -3,11 +3,12 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Download, Plus, Trash2, Upload } from 'lucide-react';
+import { Download, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
 import { ALLOWED_UPLOAD_EXTS, ALLOWED_UPLOAD_MIMES, MAX_UPLOAD_BYTES } from '@/lib/constants';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { useUrlState } from '@/hooks/useUrlState';
 import { useDeleteEntity } from '@/hooks/useEntityMutations';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
@@ -44,9 +45,10 @@ export default function DocumentsPage(): React.JSX.Element {
   const { can } = useAuth();
   const queryClient = useQueryClient();
   const canCreate = can('document:create');
+  const canUpdate = can('document:update');
   const canDelete = can('document:delete');
 
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useUrlState('category');
   const extra = useMemo(() => ({ ...(category ? { category } : {}) }), [category]);
   const list = usePaginatedList<Document>('documents', '/documents', extra);
 
@@ -66,6 +68,39 @@ export default function DocumentsPage(): React.JSX.Element {
   const [deleting, setDeleting] = useState<Document | null>(null);
 
   const remove = useDeleteEntity((id) => `/documents/${id}`, [['documents']]);
+
+  const [editing, setEditing] = useState<Document | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('OTHER');
+  const [replacement, setReplacement] = useState<File | null>(null);
+
+  const saveDoc = useMutation({
+    mutationFn: async () => {
+      if (!editing) throw new Error('No document selected.');
+      if (replacement) {
+        const err = precheck(replacement);
+        if (err) throw new Error(err);
+        const fd = new FormData();
+        fd.append('file', replacement);
+        await apiClient.post(`/documents/${editing.id}/file`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
+      return (
+        await apiClient.patch(`/documents/${editing.id}`, {
+          name: editName.trim(),
+          category: editCategory,
+        })
+      ).data;
+    },
+    onSuccess: () => {
+      toast.success('Updated successfully.');
+      setEditing(null);
+      setReplacement(null);
+      void queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+    onError: (e) => toast.error(getApiMessage(e, e instanceof Error ? e.message : 'Update failed.')),
+  });
 
   const upload = useMutation({
     mutationFn: async () => {
@@ -122,6 +157,21 @@ export default function DocumentsPage(): React.JSX.Element {
                 </a>
               </Button>
             ) : null}
+            {canUpdate ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Edit ${d.name}`}
+                onClick={() => {
+                  setEditing(d);
+                  setEditName(d.name);
+                  setEditCategory(d.category ?? 'OTHER');
+                  setReplacement(null);
+                }}
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            ) : null}
             {canDelete ? (
               <Button variant="ghost" size="icon" aria-label={`Delete ${d.name}`} onClick={() => setDeleting(d)}>
                 <Trash2 className="h-4 w-4 text-red-600" aria-hidden="true" />
@@ -131,7 +181,7 @@ export default function DocumentsPage(): React.JSX.Element {
         );
       },
     },
-  ], [canDelete]);
+  ], [canUpdate, canDelete]);
 
   return (
     <>
@@ -238,6 +288,46 @@ export default function DocumentsPage(): React.JSX.Element {
             <DialogFooter>
               <Button pending={upload.isPending} disabled={!file || !entityId} onClick={() => upload.mutate()}>
                 <Plus className="h-4 w-4" aria-hidden="true" /> Upload
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(editing)} onOpenChange={(v) => { if (!v) { setEditing(null); setReplacement(null); } }}>
+        <DialogContent aria-label="Edit document">
+          <DialogHeader><DialogTitle>Edit {editing?.name}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <FormField label="Display name" htmlFor="doc-edit-name">
+              <Input id="doc-edit-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </FormField>
+            <FormField label="Category" htmlFor="doc-edit-cat">
+              <FormSelect id="doc-edit-cat" value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </FormSelect>
+            </FormField>
+            <FormField label="Replace file (optional, max 5MB)" htmlFor="doc-edit-file">
+              <Input
+                id="doc-edit-file"
+                type="file"
+                accept={ALLOWED_UPLOAD_EXTS.join(',')}
+                onChange={(e) => setReplacement(e.target.files?.[0] ?? null)}
+              />
+            </FormField>
+            {replacement ? (
+              <p className="text-xs text-muted-foreground">
+                The current file will be overwritten by {replacement.name}.
+              </p>
+            ) : null}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setEditing(null); setReplacement(null); }}>
+                Cancel
+              </Button>
+              <Button
+                pending={saveDoc.isPending}
+                disabled={!editName.trim()}
+                onClick={() => saveDoc.mutate()}
+              >
+                Save changes
               </Button>
             </DialogFooter>
           </div>

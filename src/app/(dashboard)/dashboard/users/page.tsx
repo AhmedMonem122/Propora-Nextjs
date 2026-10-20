@@ -13,6 +13,7 @@ import { qk } from '@/lib/query-client';
 import { normalizeList } from '@/lib/list';
 import { roleNames } from '@/lib/permissions';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { useUrlState } from '@/hooks/useUrlState';
 import { useDeleteEntity } from '@/hooks/useEntityMutations';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
@@ -45,7 +46,7 @@ export default function UsersPage(): React.JSX.Element {
   const canUpdate = can('user:update');
   const canDelete = can('user:delete');
 
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useUrlState('status');
   const extra = useMemo(() => ({ ...(status ? { status } : {}) }), [status]);
   const list = usePaginatedList<OrgUser>('users', '/users', extra);
 

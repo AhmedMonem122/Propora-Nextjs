@@ -10,6 +10,7 @@ import { Eye, Pencil, Plus, ReceiptText, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { useUrlState } from '@/hooks/useUrlState';
 import { useCreateEntity, useDeleteEntity, useUpdateEntity } from '@/hooks/useEntityMutations';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
@@ -40,7 +41,7 @@ export default function LeasesPage(): React.JSX.Element {
   const { can } = useAuth();
   const queryClient = useQueryClient();
 
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useUrlState('status');
   const extra = useMemo(() => ({ ...(status ? { status } : {}) }), [status]);
   const list = usePaginatedList<Lease>('leases', '/leases', extra);
 

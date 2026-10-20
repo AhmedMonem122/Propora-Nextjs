@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { useUrlState } from '@/hooks/useUrlState';
 import { useCreateEntity, useDeleteEntity, useUpdateEntity } from '@/hooks/useEntityMutations';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
@@ -20,8 +21,8 @@ export default function PropertiesPage(): React.JSX.Element {
   const canUpdate = can('property:update');
   const canDelete = can('property:delete');
 
-  const [type, setType] = useState('');
-  const [status, setStatus] = useState('');
+  const [type, setType] = useUrlState('type');
+  const [status, setStatus] = useUrlState('status');
   const extra = useMemo(
     () => ({ ...(type ? { type } : {}), ...(status ? { status } : {}) }),
     [type, status],

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { useUrlState } from '@/hooks/useUrlState';
 import { useCreateEntity, useDeleteEntity, useUpdateEntity } from '@/hooks/useEntityMutations';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
@@ -23,7 +24,7 @@ export default function ResidentsPage(): React.JSX.Element {
   const canUpdate = can('resident:update');
   const canDelete = can('resident:delete');
 
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useUrlState('status');
   const extra = useMemo(() => ({ ...(status ? { status } : {}) }), [status]);
   const list = usePaginatedList<Resident>('residents', '/residents', extra);
 

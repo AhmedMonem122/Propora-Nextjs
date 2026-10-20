@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
@@ -8,6 +9,7 @@ import { qk } from '@/lib/query-client';
 import { normalizeList } from '@/lib/list';
 import { useAuth } from '@/lib/auth-context';
 import { useCreateEntity, useDeleteEntity, useUpdateEntity } from '@/hooks/useEntityMutations';
+import { useUrlState, writeQueryParams } from '@/hooks/useUrlState';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
@@ -21,9 +23,12 @@ import type { Building, Property, Unit } from '@/types/api';
 
 export default function UnitsPage(): React.JSX.Element {
   const { can } = useAuth();
-  const [propertyId, setPropertyId] = useState('');
-  const [buildingId, setBuildingId] = useState('');
-  const [search, setSearch] = useState('');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [propertyId] = useUrlState('propertyId');
+  const [buildingId, setBuildingId] = useUrlState('buildingId');
+  const [search, setSearch] = useUrlState('search');
 
   const propsQ = useQuery({
     queryKey: qk.properties({ limit: 100 }),
@@ -70,7 +75,16 @@ export default function UnitsPage(): React.JSX.Element {
         }
       />
       <div className="flex max-w-xl flex-wrap gap-2">
-        <Select value={propertyId || 'none'} onValueChange={(v) => { setPropertyId(v === 'none' ? '' : v); setBuildingId(''); }}>
+        <Select value={propertyId || 'none'} onValueChange={(v) => {
+          // Change property and clear the now-invalid building in ONE URL write
+          // so the two params can never clobber each other.
+          writeQueryParams(pathname, router, searchParams, (p) => {
+            const id = v === 'none' ? '' : v;
+            if (id) p.set('propertyId', id);
+            else p.delete('propertyId');
+            p.delete('buildingId');
+          });
+        }}>
           <SelectTrigger className="w-52" aria-label="Choose property">
             <SelectValue placeholder="Choose a property…" />
           </SelectTrigger>

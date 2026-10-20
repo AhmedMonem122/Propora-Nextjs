@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
 import { normalizeList } from '@/lib/list';
+import { useUrlState } from '@/hooks/useUrlState';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
@@ -31,7 +32,7 @@ type Values = z.infer<typeof schema>;
 export default function RolesPage(): React.JSX.Element {
   const { can } = useAuth();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useUrlState('search');
 
   const listQ = useQuery({
     queryKey: qk.roles,

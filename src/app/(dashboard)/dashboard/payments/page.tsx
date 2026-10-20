@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import { apiClient, getApiMessage } from '@/lib/api-client';
 import { downloadBlob } from '@/lib/csv';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { useUrlState } from '@/hooks/useUrlState';
 import { useDeleteEntity, useUpdateEntity } from '@/hooks/useEntityMutations';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
@@ -34,9 +35,9 @@ export default function PaymentsPage(): React.JSX.Element {
   const canDelete = can('payment:delete');
   const [editError, setEditError] = useState<string | null>(null);
 
-  const [status, setStatus] = useState('');
-  const [type, setType] = useState('');
-  const [overdue, setOverdue] = useState('');
+  const [status, setStatus] = useUrlState('status');
+  const [type, setType] = useUrlState('type');
+  const [overdue, setOverdue] = useUrlState('overdue');
   const extra = useMemo(
     () => ({ ...(status ? { status } : {}), ...(type ? { type } : {}), ...(overdue ? { overdue: overdue === 'yes' } : {}) }),
     [status, type, overdue],

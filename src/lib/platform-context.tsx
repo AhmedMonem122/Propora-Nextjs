@@ -68,8 +68,15 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
   const setScope = useCallback((orgId: string | null, orgName?: string | null) => {
     setOrgScope(orgId);
     setScopeState({ id: orgId, name: orgName ?? null });
-    // X-Organization-Id header changed — every cached org query is now stale.
-    queryClient.invalidateQueries();
+    if (orgId) {
+      // X-Organization-Id header changed — every cached org query is now stale.
+      queryClient.invalidateQueries();
+    } else {
+      // Leaving the tenant: don't invalidate (that would refetch every visible
+      // org query with no scope and spray token-less 401s). The ScopeGate
+      // replaces the pages; a later scope pick re-invalidates everything.
+      void queryClient.cancelQueries();
+    }
   }, [queryClient]);
 
   const doLogout = useCallback(async () => {

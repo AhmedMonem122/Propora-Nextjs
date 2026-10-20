@@ -11,6 +11,7 @@ import { apiClient, getApiMessage } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
 import { normalizeList } from '@/lib/list';
 import { useAuth } from '@/lib/auth-context';
+import { useUrlState } from '@/hooks/useUrlState';
 import { PageHeader } from '@/components/common/PageHeader/PageHeader';
 import { DataTable } from '@/components/common/DataTable/DataTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog/ConfirmDialog';
@@ -40,6 +41,7 @@ export default function UnitTypesPage(): React.JSX.Element {
     ? (listQ.data as unknown as UnitType[])
     : (listQ.data?.rows ?? []);
 
+  const [search, setSearch] = useUrlState('search');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<UnitType | null>(null);
   const [deleting, setDeleting] = useState<UnitType | null>(null);
@@ -88,6 +90,8 @@ export default function UnitTypesPage(): React.JSX.Element {
       <PageHeader
         title="Unit types"
         description="Catalog used by the unit form picker."
+        searchValue={search}
+        onSearchChange={setSearch}
         onReload={() => void listQ.refetch()}
         reloading={listQ.isFetching}
         actions={
@@ -123,7 +127,14 @@ export default function UnitTypesPage(): React.JSX.Element {
             },
           },
         ]}
-        data={rows}
+        data={rows.filter((t) => {
+          const term = search.trim().toLowerCase();
+          if (!term) return true;
+          return (
+            t.name.toLowerCase().includes(term) ||
+            (t.description ?? '').toLowerCase().includes(term)
+          );
+        })}
         meta={listQ.data?.meta}
         page={1}
         onPageChange={() => undefined}
