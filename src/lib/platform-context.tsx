@@ -53,14 +53,24 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
   const queryClient = useQueryClient();
   const [admin, setAdmin] = useState<PlatformAdmin | null>(null);
   const [booted, setBooted] = useState(false);
-  const [scope, setScopeState] = useState<{ id: string | null; name: string | null }>(
-    () => ({ id: null, name: null }),
-  );
+  const [scope, setScopeState] = useState<{ id: string | null; name: string | null }>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = window.localStorage.getItem('propora.orgScope');
+        if (saved) return { id: saved, name: null };
+      } catch {
+        /* storage unavailable — scope starts empty */
+      }
+    }
+    return { id: null, name: null };
+  });
 
   const setScope = useCallback((orgId: string | null, orgName?: string | null) => {
     setOrgScope(orgId);
     setScopeState({ id: orgId, name: orgName ?? null });
-  }, []);
+    // X-Organization-Id header changed — every cached org query is now stale.
+    queryClient.invalidateQueries();
+  }, [queryClient]);
 
   const doLogout = useCallback(async () => {
     // Mirror of the org logout: end both sessions, clear cached org data.
@@ -107,41 +117,28 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
     };
   }, []);
 
-  // On client mount, restore the persisted org scope from localStorage. The
-  // useState initializer above always returns null on the server (no window),
-  // so we re-read localStorage here on the client so a platform admin acting
-  // as a tenant stays on the same organization dashboard after reload instead
-  // of being kicked to ScopeGate.
-  // We deliberately do NOT fetch the org name here: a 401 on
-  // /platform/organizations/{id} would trigger the axios 401 interceptor and
-  // log the user out. The ID is enough for X-Organization-Id; the name is
-  // displayed as a truncated slice in the banner.
-  useEffect(() => {
-    let alive = true;
-    const saved =
-      typeof window !== 'undefined'
-        ? window.localStorage.getItem('propora.orgScope')
-        : null;
-    if (!saved || !alive) return;
-    // Defer the state update to the next microtask to avoid cascading renders
-    // from calling setState synchronously inside an effect body.
-    Promise.resolve().then(() => {
-      if (!alive) return;
-      setScopeState({ id: saved, name: null });
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // Scope is initialized from localStorage in the useState initializer above
+  // so it's available on the first client render — no flash of ScopeGate.
 
-  // Restore the persisted scope's display name after a scope change.
-  // Fetching the name here risks a 401 → logout, so we only update the name
-  // when setScope() is called with an explicit name (from the org picker).
+  // Fetch the persisted scope's display name after a scope change / reload.
+  // Errors are swallowed so a 401 on the name lookup never triggers logout —
+  // the name is a display nicety, the ID (X-Organization-Id) is what matters.
   useEffect(() => {
     if (!scope.id || scope.name) return;
+    const orgId = scope.id;
     let alive = true;
-    // Name lookup deferred: org name is set via setScope() when the admin
-    // picks an org from the picker. No background fetch to avoid 401 logout.
+    (async () => {
+      try {
+        const res = await apiClient.get(`/platform/organizations/${orgId}`);
+        if (!alive) return;
+        const data = res.data as { name?: string } | undefined;
+        setScopeState((prev) =>
+          prev.id === orgId ? { id: orgId, name: data?.name ?? orgId.slice(0, 8) } : prev,
+        );
+      } catch {
+        /* name lookup failed — keep ID slice as display name */
+      }
+    })();
     return () => {
       alive = false;
     };
