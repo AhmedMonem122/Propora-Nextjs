@@ -120,11 +120,12 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
   // Scope is initialized from localStorage in the useState initializer above
   // so it's available on the first client render — no flash of ScopeGate.
 
-  // Fetch the persisted scope's display name after a scope change / reload.
-  // Errors are swallowed so a 401 on the name lookup never triggers logout —
-  // the name is a display nicety, the ID (X-Organization-Id) is what matters.
+  // Fetch the persisted scope's display name only once the platform session is
+  // actually restored (admin set). Firing this during boot would send a
+  // token-less request, 401, and previously trigger a logout that also wiped
+  // the persisted scope.
   useEffect(() => {
-    if (!scope.id || scope.name) return;
+    if (!admin || !scope.id || scope.name) return;
     const orgId = scope.id;
     let alive = true;
     (async () => {
@@ -142,7 +143,7 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
     return () => {
       alive = false;
     };
-  }, [scope.id, scope.name]);
+  }, [admin, scope.id, scope.name]);
 
   useEffect(() => {
     setOnPlatformUnauthorized(() => {

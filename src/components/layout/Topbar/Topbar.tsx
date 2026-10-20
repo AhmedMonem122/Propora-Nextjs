@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Bell, Menu, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
+import { usePlatform } from '@/lib/platform-context';
 import { apiClient } from '@/lib/api-client';
 import { qk } from '@/lib/query-client';
 import { Avatar, AvatarFallback, initialsOf } from '@/components/ui/Avatar/Avatar';
@@ -20,12 +21,17 @@ import { ThemeToggle } from '@/components/common/ThemeToggle/ThemeToggle';
 
 export function Topbar({ onMenu, onCommand }: { onMenu: () => void; onCommand: () => void }): React.JSX.Element {
   const { user, logout } = useAuth();
+  const { isAuthenticated: platformAuthed, orgScope } = usePlatform();
+  // Platform admin before picking a tenant: /notifications has no scope to
+  // resolve against (and would 401). Don't poll until a scope exists.
+  const awaitingScope = platformAuthed && !orgScope;
   const unread = useQuery({
     queryKey: qk.notifications({ unreadOnly: true, limit: 1 }),
     queryFn: async () => {
       const res = await apiClient.get('/notifications', { params: { unreadOnly: true, limit: 1 } });
       return (res.data?.meta?.total ?? 0) as number;
     },
+    enabled: !awaitingScope,
     staleTime: 30_000,
     // Cheap single-row poll so the badge stays fresh even without Realtime;
     // realtime invalidation keeps it instant when available.

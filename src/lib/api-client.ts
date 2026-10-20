@@ -335,7 +335,6 @@ export function createApiClient(): AxiosInstance {
       const status = error.response?.status;
       const url = original?.url ?? '';
       const isRefreshCall = url.includes('/auth/refresh');
-      const isPlatformPath = url.startsWith('/platform');
       const kind = original?._tokenKind ?? null;
       // Only attempt a refresh when we actually sent a (possibly expired)
       // token. Token-less 401s (logged out) must NOT hit refresh —
@@ -349,10 +348,13 @@ export function createApiClient(): AxiosInstance {
           return client(original);
         }
       }
-      if (status === 401 && !isRefreshCall) {
-        // Route the expiry to the session that actually sent the token
-        // (public calls fall back to the path convention).
-        if (kind === 'platform' || (kind === null && isPlatformPath)) onPlatformUnauthorized?.();
+      if (status === 401 && !isRefreshCall && sentToken) {
+        // Only an EXPIRED session may log the user out: we must have actually
+        // sent a token (and the refresh above failed). A token-less 401 — a
+        // query firing during boot before the session is restored, or a public
+        // call — says nothing about the session, so it just rejects. Logging
+        // out here would wipe the org scope and bounce a valid admin to login.
+        if (kind === 'platform') onPlatformUnauthorized?.();
         else onUnauthorized?.();
       }
       return Promise.reject(error);

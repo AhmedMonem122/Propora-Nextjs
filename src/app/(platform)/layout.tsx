@@ -7,7 +7,6 @@ import { LogOut, Menu } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { usePlatform } from '@/lib/platform-context';
 import { PlatformSidebar } from '@/components/layout/PlatformSidebar/PlatformSidebar';
-import { OrgScopeBanner } from '@/components/common/OrgScopePicker/OrgScopePicker';
 import { Button } from '@/components/ui/Button/Button';
 import { Skeleton } from '@/components/ui/Skeleton/Skeleton';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/Dialog/Dialog';
@@ -15,7 +14,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/Dialog/Dialo
 function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
-  const { isLoading, isAuthenticated, admin, logout } = usePlatform();
+  const { isLoading, isAuthenticated, admin, logout, orgScope } = usePlatform();
   const { isAuthenticated: hasOrgSession } = useAuth();
   const isLogin = pathname === '/platform/login';
   const [mobileNav, setMobileNav] = useState(false);
@@ -71,6 +70,10 @@ function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
             <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
               Back to app
             </Link>
+          ) : orgScope ? (
+            <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
+              Back to tenant dashboard
+            </Link>
           ) : null}
           <Button
             variant="ghost"
@@ -82,7 +85,6 @@ function Shell({ children }: { children: React.ReactNode }): React.JSX.Element {
           </Button>
         </div>
         <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 p-4 md:p-6">
-          <OrgScopeBanner />
           {children}
         </main>
       </div>
