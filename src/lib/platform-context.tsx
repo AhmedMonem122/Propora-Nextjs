@@ -109,15 +109,26 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
         setBooted(true);
         return;
       }
-      try {
-        const res = await apiClient.get('/platform/auth/me');
-        if (!alive) return;
-        setAdmin(res.data as PlatformAdmin);
-      } catch {
-        setPlatformToken(null);
-      } finally {
-        if (alive) setBooted(true);
+      // Retry transient failures (cold start / CORS blip) — a flaky network
+      // must not end a valid admin session. Only a real 401 clears the token.
+      for (let attempt = 0; attempt < 3 && alive; attempt++) {
+        try {
+          const res = await apiClient.get('/platform/auth/me');
+          if (!alive) return;
+          setAdmin(res.data as PlatformAdmin);
+          break;
+        } catch (error) {
+          const status = (error as { response?: { status?: number } }).response?.status;
+          if (status === 401) {
+            setPlatformToken(null);
+            break;
+          }
+          if (attempt < 2) {
+            await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+          }
+        }
       }
+      if (alive) setBooted(true);
     })();
     return () => {
       alive = false;

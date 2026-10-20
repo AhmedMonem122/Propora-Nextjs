@@ -39,7 +39,11 @@ export default function PaymentsPage(): React.JSX.Element {
   const [type, setType] = useUrlState('type');
   const [overdue, setOverdue] = useUrlState('overdue');
   const extra = useMemo(
-    () => ({ ...(status ? { status } : {}), ...(type ? { type } : {}), ...(overdue ? { overdue: overdue === 'yes' } : {}) }),
+    () => ({
+      ...(status ? { status } : {}),
+      ...(type ? { type } : {}),
+      ...(overdue ? { overdue: overdue === 'yes' } : {}),
+    }),
     [status, type, overdue],
   );
   const list = usePaginatedList<Payment>('payments', '/payments', extra);

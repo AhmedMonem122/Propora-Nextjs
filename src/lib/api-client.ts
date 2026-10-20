@@ -225,17 +225,31 @@ async function doRefreshNetwork(kind: 'org' | 'platform'): Promise<string | null
     kind === 'org'
       ? `${API_URL}${API_PREFIX}/auth/refresh`
       : `${API_URL}${API_PREFIX}/platform/auth/refresh`;
-  try {
-    const res = await axios.post(url, {}, { withCredentials: true, timeout: 15000 });
-    const token = res.data?.accessToken as string | undefined;
-    if (kind === 'org') setAccessToken(token ?? null);
-    else setPlatformToken(token ?? null);
-    return token ?? null;
-  } catch {
-    if (kind === 'org') setAccessToken(null);
-    else setPlatformToken(null);
-    return null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await axios.post(url, {}, { withCredentials: true, timeout: 15000 });
+      const token = res.data?.accessToken as string | undefined;
+      if (kind === 'org') setAccessToken(token ?? null);
+      else setPlatformToken(token ?? null);
+      return token ?? null;
+    } catch (error) {
+      const status = (error as { response?: { status?: number } }).response?.status;
+      if (status === 401 || status === 403) {
+        // The refresh cookie is genuinely invalid/expired — end the session.
+        if (kind === 'org') setAccessToken(null);
+        else setPlatformToken(null);
+        return null;
+      }
+      // Network/timeout/5xx (e.g. a cold start): keep the tokens we already
+      // have and retry once before reporting "no session".
+      if (attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        continue;
+      }
+      return null;
+    }
   }
+  return null;
 }
 
 /**
